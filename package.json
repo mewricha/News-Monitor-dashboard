@@ -1,0 +1,12 @@
+{
+  "name": "rta-news-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ดึงข้อมูลข่าวจาก Google Sheet (Publish to web CSV) มาสร้าง data/news.json สำหรับแดชบอร์ด static",
+  "scripts": {
+    "build": "node scripts/fetch-and-build.js"
+  },
+  "dependencies": {
+    "csv-parse": "^5.5.6"
+  }
+}

@@ -1,0 +1,239 @@
+* { box-sizing: border-box; }
+
+:root {
+  --bg: #F1EFE8;
+  --surface: #FFFFFF;
+  --border: #E0DED6;
+  --text: #1A1A1A;
+  --text-secondary: #7A7887;
+  --accent: #0D47A1;
+  --danger: #8B0000;
+  --label: #8B0000;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", "Sarabun", Tahoma, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ---------- หัวเว็บ ---------- */
+.topbar {
+  background: #FFFFFF;
+  border-bottom: 1px solid var(--border);
+  padding: 16px;
+}
+
+.topbar-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.topbar h1 {
+  font-size: 18px;
+  margin: 0 0 4px;
+}
+
+.last-updated {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.footer {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 20px;
+}
+
+/* ---------- การ์ดสถิติ ---------- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.stat-card .label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0 0 4px;
+}
+
+.stat-card .value {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.stat-card .value.danger { color: var(--danger); }
+.stat-card .value.accent { color: var(--accent); }
+
+/* ---------- แถบตัวกรอง ---------- */
+.filter-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+#searchInput {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.filter-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-row:last-child { margin-bottom: 0; }
+
+select, .date-label input {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  background: #FFFFFF;
+}
+
+.date-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.checkbox-label {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.export-btn {
+  margin-left: auto;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #FFFFFF;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.export-btn:active { opacity: 0.8; }
+
+.result-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0 0 10px;
+}
+
+/* ---------- ผลลัพธ์ข่าว (การ์ด) ---------- */
+.results-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.loading, .empty {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 40px 0;
+  font-size: 14px;
+  grid-column: 1 / -1;
+}
+
+.news-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.news-card .badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+  margin-right: 4px;
+}
+
+.badge.category { background: #EAF1FB; color: var(--accent); }
+.badge.impact-สูง { background: #FCEBEB; color: #791F1F; }
+.badge.impact-กลาง, .badge.impact-ต่ำ { background: #FAEEDA; color: #854F0B; }
+.badge.cambodia { background: #E9F5EA; color: #1B5E20; }
+
+.news-card .title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 6px 0;
+  line-height: 1.4;
+}
+
+.news-card .summary {
+  font-size: 13px;
+  color: #3D3D3D;
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.news-card .meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0 0 8px;
+}
+
+.news-card .sources {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.news-card .sources a {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.news-card .sources a:active { opacity: 0.6; }
+
+/* ---------- Responsive: แท็บเล็ต ---------- */
+@media (min-width: 640px) {
+  .stat-grid { grid-template-columns: repeat(4, 1fr); }
+  .results-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ---------- Responsive: เดสก์ท็อป ---------- */
+@media (min-width: 1000px) {
+  .results-grid { grid-template-columns: repeat(3, 1fr); }
+  .topbar h1 { font-size: 20px; }
+}
