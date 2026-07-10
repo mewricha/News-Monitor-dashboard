@@ -267,6 +267,10 @@ select, .date-label input {
 }
 
 .badge.category { background: #1B2A46; color: #8FBFFF; }
+.badge.cat-negative { background: #3A1414; color: #FF9E9E; }
+.badge.cat-cambodia { background: #12331A; color: #8FD69B; }
+.badge.cat-border-other { background: #3A3410; color: #E8D66B; }
+.badge.cat-jcht { background: #3A1430; color: #F79ACB; }
 .badge.impact-สูง { background: #3A1414; color: #FF9E9E; }
 .badge.impact-กลาง, .badge.impact-ต่ำ { background: #3A2A0F; color: #FFC978; }
 .badge.cambodia { background: #12331A; color: #8FD69B; }
@@ -288,7 +292,7 @@ select, .date-label input {
 
 .news-card .meta {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: #E8D66B;
   margin: 0 0 8px;
 }
 

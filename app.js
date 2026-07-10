@@ -199,7 +199,13 @@ function renderResults(topics) {
   }
 
   grid.innerHTML = topics.map(function (t) {
-    var badges = '<span class="badge category">' + escapeHtml(t.category) + '</span>';
+    var categoryBadgeClass = 'category';
+    if (t.category === 'ข่าวผลกระทบลบ') categoryBadgeClass = 'cat-negative';
+    else if (t.category === 'ชายแดนไทย-กัมพูชา') categoryBadgeClass = 'cat-cambodia';
+    else if (t.category === 'ความมั่นคงชายแดนอื่น') categoryBadgeClass = 'cat-border-other';
+    else if (t.category === 'สถานการณ์ จชต.') categoryBadgeClass = 'cat-jcht';
+
+    var badges = '<span class="badge ' + categoryBadgeClass + '">' + escapeHtml(t.category) + '</span>';
 
     var attentionClass = '';
     if (t.count >= 20) attentionClass = ' attention-high';
