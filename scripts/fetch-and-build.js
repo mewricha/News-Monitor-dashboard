@@ -15,6 +15,26 @@ const { parse } = require('csv-parse/sync');
 
 const CSV_URL = process.env.SHEET_CSV_URL;
 
+/**
+ * แปลงสตริงวันที่แบบไทย "d/M/yyyy, H:mm:ss" (วัน/เดือน/ปี) เป็น Date object ที่ถูกต้อง
+ * เขียนเองแทนการใช้ new Date(str) เพราะ JavaScript ตีความสตริงรูปแบบ xx/xx/xxxx
+ * เป็นเดือน/วันแบบอเมริกันเสมอ ทำให้วัน/เดือนสลับกันถ้าต้นฉบับเป็นไทย
+ * เวลาไทยคือ UTC+7 ตลอดปี (ไม่มี DST) จึงลบ 7 ชม. เพื่อคำนวณเวลา UTC ที่ถูกต้องเสมอ
+ * ไม่ว่าเซิร์ฟเวอร์ที่รันสคริปต์นี้จะอยู่โซนเวลาใดก็ตาม
+ */
+function parseThaiDatetime(str) {
+  var m = str.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s*(\d{1,2}):(\d{2}):(\d{2})$/);
+  if (!m) return null;
+  var day = parseInt(m[1], 10);
+  var month = parseInt(m[2], 10);
+  var year = parseInt(m[3], 10);
+  var hour = parseInt(m[4], 10);
+  var minute = parseInt(m[5], 10);
+  var second = parseInt(m[6], 10);
+  var utcMillis = Date.UTC(year, month - 1, day, hour, minute, second) - 7 * 3600 * 1000;
+  return new Date(utcMillis);
+}
+
 async function main() {
   if (!CSV_URL) {
     throw new Error('ไม่พบ SHEET_CSV_URL — ต้องตั้งค่าเป็น GitHub Secret หรือ environment variable ก่อนรัน');
@@ -36,8 +56,8 @@ async function main() {
     const datetimeRaw = (row[0] || '').trim();
     if (!status || !datetimeRaw) continue; // เอาเฉพาะข่าวที่วิเคราะห์ครบแล้วและมีวันที่
 
-    const dt = new Date(datetimeRaw);
-    if (isNaN(dt.getTime())) continue; // ข้ามแถวที่รูปแบบวันที่อ่านไม่ได้
+    const dt = parseThaiDatetime(datetimeRaw);
+    if (!dt || isNaN(dt.getTime())) continue; // ข้ามแถวที่รูปแบบวันที่อ่านไม่ได้
 
     news.push({
       datetime: dt.toISOString(),
