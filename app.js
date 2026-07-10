@@ -2,9 +2,11 @@
 // โหลดข้อมูลจาก data/news.json (path สัมพัทธ์ อยู่ repo เดียวกัน ไม่มีปัญหา CORS)
 // ============================================================
 var state = {
-  allNews: [],       // ข่าวดิบทั้งหมด
-  filteredNews: [],  // หลังกรอง (ยังไม่จัดกลุ่ม)
-  topics: []         // หลังจัดกลุ่มตามรหัสกลุ่มข่าว
+  allNews: [],
+  filteredNews: [],
+  topics: [],
+  selectedCategories: new Set(), // ว่าง = ไม่กรอง (เอาทุกหมวด)
+  selectedSources: new Set()     // ว่าง = ไม่กรอง (เอาทุกสำนักข่าว)
 };
 
 var THAI_MONTHS_ABBR = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
@@ -27,7 +29,8 @@ async function loadData() {
       updatedEl.textContent = 'ยังไม่มีข้อมูล (รอรอบอัปเดตแรกจาก GitHub Actions)';
     }
 
-    populateCategoryFilter();
+    setupMultiselect('category', 'categoryMultiselect', 'categoryToggle', 'categoryPanel', 'ทุกหมวด');
+    setupMultiselect('source', 'sourceMultiselect', 'sourceToggle', 'sourcePanel', 'ทุกสำนักข่าว');
     applyFiltersAndRender();
   } catch (err) {
     document.getElementById('resultsGrid').innerHTML = '<div class="empty">โหลดข้อมูลไม่สำเร็จ: ' + err.message + '</div>';
@@ -35,16 +38,66 @@ async function loadData() {
   }
 }
 
-function populateCategoryFilter() {
-  var categories = Array.from(new Set(state.allNews.map(function (n) { return n.category || 'อื่นๆ'; })));
-  categories.sort();
-  var sel = document.getElementById('categoryFilter');
-  categories.forEach(function (c) {
-    var opt = document.createElement('option');
-    opt.value = c;
-    opt.textContent = c;
-    sel.appendChild(opt);
+// ============================================================
+// ตัวกรองแบบเลื่อนลงติ๊กหลายชนิด (multiselect dropdown)
+// ============================================================
+function setupMultiselect(kind, containerId, toggleId, panelId, allLabel) {
+  var field = kind === 'category' ? 'category' : 'source';
+  var selectedSet = kind === 'category' ? state.selectedCategories : state.selectedSources;
+
+  var values = Array.from(new Set(state.allNews.map(function (n) { return n[field] || '-'; }))).sort();
+
+  var panel = document.getElementById(panelId);
+  var clearRow = document.createElement('div');
+  clearRow.className = 'ms-clear';
+  clearRow.textContent = 'ล้างตัวเลือกทั้งหมด';
+  clearRow.addEventListener('click', function () {
+    selectedSet.clear();
+    updateMultiselectUI(kind, containerId, toggleId, panelId, allLabel);
+    applyFiltersAndRender();
   });
+  panel.innerHTML = '';
+  panel.appendChild(clearRow);
+
+  values.forEach(function (v) {
+    var label = document.createElement('label');
+    var checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = v;
+    checkbox.addEventListener('change', function () {
+      if (checkbox.checked) selectedSet.add(v); else selectedSet.delete(v);
+      updateMultiselectUI(kind, containerId, toggleId, panelId, allLabel);
+      applyFiltersAndRender();
+    });
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(v));
+    panel.appendChild(label);
+  });
+
+  var toggleBtn = document.getElementById(toggleId);
+  toggleBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var isOpen = !panel.hidden;
+    document.querySelectorAll('.multiselect-panel').forEach(function (p) { p.hidden = true; });
+    panel.hidden = isOpen;
+  });
+
+  document.addEventListener('click', function (e) {
+    var container = document.getElementById(containerId);
+    if (!container.contains(e.target)) panel.hidden = true;
+  });
+
+  updateMultiselectUI(kind, containerId, toggleId, panelId, allLabel);
+}
+
+function updateMultiselectUI(kind, containerId, toggleId, panelId, allLabel) {
+  var selectedSet = kind === 'category' ? state.selectedCategories : state.selectedSources;
+  var toggleBtn = document.getElementById(toggleId);
+  if (selectedSet.size === 0) {
+    toggleBtn.textContent = allLabel + ' ▾';
+  } else {
+    toggleBtn.textContent = 'เลือกแล้ว ' + selectedSet.size + ' รายการ ▾';
+  }
 }
 
 // ============================================================
@@ -75,25 +128,34 @@ function groupIntoTopics(newsList) {
   return Object.keys(map).map(function (k) { return map[k]; });
 }
 
+function uniqueSourceCount(topic) {
+  return new Set(topic.sources.map(function (s) { return s.source; })).size;
+}
+
 // ============================================================
 // กรองและเรนเดอร์
 // ============================================================
 function applyFiltersAndRender() {
   var q = document.getElementById('searchInput').value.trim().toLowerCase();
-  var cat = document.getElementById('categoryFilter').value;
   var dateFrom = document.getElementById('dateFrom').value;
   var dateTo = document.getElementById('dateTo').value;
-  var onlyNeg = document.getElementById('onlyNegative').checked;
-  var onlyCam = document.getElementById('onlyCambodia').checked;
+  var onlyToday = document.getElementById('onlyToday').checked;
+  var onlyLast3Days = document.getElementById('onlyLast3Days').checked;
   var sortOrder = document.getElementById('sortOrder').value;
 
+  var todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  var last3DaysStart = new Date(todayStart.getTime() - 2 * 86400000); // รวมวันนี้ + 2 วันก่อนหน้า = 3 วัน
+
   var filtered = state.allNews.filter(function (n) {
-    if (cat && n.category !== cat) return false;
-    if (onlyNeg && !n.isNegative) return false;
-    if (onlyCam && !n.isThailandCambodia) return false;
+    if (state.selectedCategories.size > 0 && !state.selectedCategories.has(n.category)) return false;
+    if (state.selectedSources.size > 0 && !state.selectedSources.has(n.source)) return false;
 
     if (dateFrom && n.datetime < dateFrom) return false;
     if (dateTo && n.datetime > (dateTo + 'T23:59:59')) return false;
+
+    if (onlyToday && new Date(n.datetime) < todayStart) return false;
+    if (onlyLast3Days && new Date(n.datetime) < last3DaysStart) return false;
 
     if (q) {
       var hay = (n.title + ' ' + n.summary + ' ' + n.source).toLowerCase();
@@ -119,13 +181,11 @@ function applyFiltersAndRender() {
 }
 
 function renderStats(filtered, topics) {
-  var negCount = topics.filter(function (t) { return t.isNegative; }).length;
   var sourceSet = new Set(filtered.map(function (n) { return n.source; }));
 
   document.getElementById('statGrid').innerHTML =
     '<div class="stat-card"><p class="label">ประเด็นทั้งหมด</p><p class="value">' + topics.length + '</p></div>' +
     '<div class="stat-card"><p class="label">นำเสนอข่าว (ครั้ง)</p><p class="value accent">' + filtered.length + '</p></div>' +
-    '<div class="stat-card"><p class="label">ข่าวลบ</p><p class="value danger">' + negCount + '</p></div>' +
     '<div class="stat-card"><p class="label">สำนักข่าว</p><p class="value">' + sourceSet.size + '</p></div>';
 
   document.getElementById('resultCount').textContent = 'พบ ' + topics.length + ' ประเด็น (' + filtered.length + ' ข่าว)';
@@ -140,22 +200,25 @@ function renderResults(topics) {
 
   grid.innerHTML = topics.map(function (t) {
     var badges = '<span class="badge category">' + escapeHtml(t.category) + '</span>';
-    if (t.isThailandCambodia) badges += '<span class="badge cambodia">ไทย-กัมพูชา</span>';
-    if (t.isNegative && t.impact && t.impact !== '-') {
-      badges += '<span class="badge impact-' + t.impact + '">ระดับ ' + t.impact + '</span>';
-    }
+
+    var attentionClass = '';
+    if (t.count >= 20) attentionClass = ' attention-high';
+    else if (t.count >= 10) attentionClass = ' attention-mid';
 
     var sourcesHtml = t.sources.slice(0, 5).map(function (s) {
       return '<a href="' + s.url + '" target="_blank" rel="noopener">🔗 ' + escapeHtml(s.source) + '</a>';
     }).join('');
     if (t.sources.length > 5) {
-      sourcesHtml += '<span style="font-size:12px;color:#7A7887">และอีก ' + (t.sources.length - 5) + ' แหล่ง</span>';
+      sourcesHtml += '<span style="font-size:12px;color:var(--text-secondary)">และอีก ' + (t.sources.length - 5) + ' แหล่ง</span>';
     }
 
-    return '<div class="news-card">' + badges +
+    var srcCount = uniqueSourceCount(t);
+    var metaText = formatThaiDate(new Date(t.earliestDate)) + ' · นำเสนอ ' + t.count + ' ครั้ง · ' + srcCount + ' สำนักข่าว';
+
+    return '<div class="news-card' + attentionClass + '">' + badges +
       '<p class="title">' + escapeHtml(t.title) + '</p>' +
       '<p class="summary">' + escapeHtml(t.summary) + '</p>' +
-      '<p class="meta">' + formatThaiDate(new Date(t.earliestDate)) + ' · นำเสนอ ' + t.count + ' ครั้ง</p>' +
+      '<p class="meta">' + metaText + '</p>' +
       '<div class="sources">' + sourcesHtml + '</div>' +
       '</div>';
   }).join('');
@@ -189,7 +252,7 @@ function exportCsv() {
     lines.push(cells.join(','));
   });
 
-  var csvContent = '\uFEFF' + lines.join('\r\n'); // ใส่ BOM กัน Excel อ่านภาษาไทยเพี้ยน
+  var csvContent = '\uFEFF' + lines.join('\r\n');
   var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
@@ -210,9 +273,29 @@ function csvEscape(value) {
 }
 
 // ============================================================
+// ล้างตัวกรองทั้งหมด
+// ============================================================
+function clearAllFilters() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value = '';
+  document.getElementById('onlyToday').checked = false;
+  document.getElementById('onlyLast3Days').checked = false;
+
+  state.selectedCategories.clear();
+  state.selectedSources.clear();
+  document.querySelectorAll('#categoryPanel input[type=checkbox]').forEach(function (cb) { cb.checked = false; });
+  document.querySelectorAll('#sourcePanel input[type=checkbox]').forEach(function (cb) { cb.checked = false; });
+  updateMultiselectUI('category', 'categoryMultiselect', 'categoryToggle', 'categoryPanel', 'ทุกหมวด');
+  updateMultiselectUI('source', 'sourceMultiselect', 'sourceToggle', 'sourcePanel', 'ทุกสำนักข่าว');
+
+  applyFiltersAndRender();
+}
+
+// ============================================================
 // ผูก event listener
 // ============================================================
-['searchInput', 'categoryFilter', 'dateFrom', 'dateTo', 'onlyNegative', 'onlyCambodia', 'sortOrder']
+['searchInput', 'dateFrom', 'dateTo', 'onlyToday', 'onlyLast3Days', 'sortOrder']
   .forEach(function (id) {
     var el = document.getElementById(id);
     el.addEventListener('input', applyFiltersAndRender);
@@ -220,5 +303,6 @@ function csvEscape(value) {
   });
 
 document.getElementById('exportBtn').addEventListener('click', exportCsv);
+document.getElementById('clearFiltersBtn').addEventListener('click', clearAllFilters);
 
 loadData();

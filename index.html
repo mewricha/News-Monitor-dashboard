@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>แดชบอร์ดข่าวกองทัพบก</title>
+<title>Dashboard ติดตามข่าวสารกองทัพบก โดย ศปส.ทบ.</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <header class="topbar">
     <div class="topbar-inner">
-      <h1>📊 แดชบอร์ดข่าวกองทัพบก</h1>
+      <h1>Dashboard ติดตามข่าวสารกองทัพบก โดย ศปส.ทบ.</h1>
       <p id="lastUpdated" class="last-updated">กำลังโหลด...</p>
     </div>
   </header>
@@ -23,10 +23,18 @@
       <input type="text" id="searchInput" placeholder="ค้นหาหัวข้อ/เนื้อหา/แหล่งข่าว..." />
 
       <div class="filter-row">
-        <select id="categoryFilter">
-          <option value="">ทุกหมวด</option>
-        </select>
+        <div class="multiselect" id="categoryMultiselect">
+          <button type="button" class="multiselect-toggle" id="categoryToggle">ทุกหมวด ▾</button>
+          <div class="multiselect-panel" id="categoryPanel" hidden></div>
+        </div>
 
+        <div class="multiselect" id="sourceMultiselect">
+          <button type="button" class="multiselect-toggle" id="sourceToggle">ทุกสำนักข่าว ▾</button>
+          <div class="multiselect-panel" id="sourcePanel" hidden></div>
+        </div>
+      </div>
+
+      <div class="filter-row">
         <select id="sortOrder">
           <option value="desc">ใหม่ล่าสุดก่อน</option>
           <option value="asc">เก่าสุดก่อน</option>
@@ -40,8 +48,9 @@
       </div>
 
       <div class="filter-row">
-        <label class="checkbox-label"><input type="checkbox" id="onlyNegative"> เฉพาะข่าวลบ</label>
-        <label class="checkbox-label"><input type="checkbox" id="onlyCambodia"> เฉพาะไทย-กัมพูชา</label>
+        <label class="checkbox-label"><input type="checkbox" id="onlyToday"> ข่าววันนี้</label>
+        <label class="checkbox-label"><input type="checkbox" id="onlyLast3Days"> ข่าว 3 วันย้อนหลัง</label>
+        <button id="clearFiltersBtn" class="clear-btn">✕ ล้างตัวกรองทั้งหมด</button>
         <button id="exportBtn" class="export-btn">⬇ ส่งออก CSV</button>
       </div>
     </section>
@@ -55,7 +64,7 @@
   </main>
 
   <footer class="footer">
-    <p>ข้อมูลอัปเดตอัตโนมัติทุก 3 ชั่วโมงจาก Google Sheet ผ่าน GitHub Actions</p>
+    <p>ออกแบบและพัฒนาระบบโดย ทีมโฆษกกองทัพบก</p>
   </footer>
 
   <script src="app.js"></script>

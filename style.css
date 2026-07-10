@@ -1,14 +1,14 @@
 * { box-sizing: border-box; }
 
 :root {
-  --bg: #F1EFE8;
-  --surface: #FFFFFF;
-  --border: #E0DED6;
-  --text: #1A1A1A;
-  --text-secondary: #7A7887;
-  --accent: #0D47A1;
-  --danger: #8B0000;
-  --label: #8B0000;
+  --bg: #0B1220;
+  --surface: #131B2E;
+  --surface-hover: #1A2540;
+  --border: #22304A;
+  --text: #E8EAF0;
+  --text-secondary: #8891A5;
+  --accent: #6BA6FF;
+  --danger: #FF6B6B;
 }
 
 body {
@@ -20,7 +20,7 @@ body {
 
 /* ---------- หัวเว็บ ---------- */
 .topbar {
-  background: #FFFFFF;
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
   padding: 16px;
 }
@@ -31,8 +31,9 @@ body {
 }
 
 .topbar h1 {
-  font-size: 18px;
+  font-size: 17px;
   margin: 0 0 4px;
+  color: var(--text);
 }
 
 .last-updated {
@@ -54,10 +55,10 @@ body {
   padding: 20px;
 }
 
-/* ---------- การ์ดสถิติ ---------- */
+/* ---------- การ์ดสถิติ (3 คอลัมน์) ---------- */
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   margin-bottom: 16px;
 }
@@ -79,9 +80,9 @@ body {
   font-size: 22px;
   font-weight: 600;
   margin: 0;
+  color: var(--text);
 }
 
-.stat-card .value.danger { color: var(--danger); }
 .stat-card .value.accent { color: var(--accent); }
 
 /* ---------- แถบตัวกรอง ---------- */
@@ -100,7 +101,11 @@ body {
   border: 1px solid var(--border);
   font-size: 14px;
   margin-bottom: 10px;
+  background: var(--bg);
+  color: var(--text);
 }
+
+#searchInput::placeholder { color: var(--text-secondary); }
 
 .filter-row {
   display: flex;
@@ -117,7 +122,8 @@ select, .date-label input {
   border-radius: 8px;
   border: 1px solid var(--border);
   font-size: 13px;
-  background: #FFFFFF;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .date-label {
@@ -130,10 +136,23 @@ select, .date-label input {
 
 .checkbox-label {
   font-size: 13px;
+  color: var(--text);
   display: flex;
   align-items: center;
   gap: 6px;
 }
+
+.clear-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.clear-btn:hover { background: var(--surface-hover); }
 
 .export-btn {
   margin-left: auto;
@@ -141,7 +160,8 @@ select, .date-label input {
   border-radius: 8px;
   border: none;
   background: var(--accent);
-  color: #FFFFFF;
+  color: #06111F;
+  font-weight: 600;
   font-size: 13px;
   cursor: pointer;
 }
@@ -152,6 +172,62 @@ select, .date-label input {
   font-size: 12px;
   color: var(--text-secondary);
   margin: 0 0 10px;
+}
+
+/* ---------- ตัวกรองแบบเลื่อนลงติ๊กหลายชนิด (multiselect) ---------- */
+.multiselect {
+  position: relative;
+}
+
+.multiselect-toggle {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  min-width: 140px;
+  text-align: left;
+}
+
+.multiselect-toggle:hover { background: var(--surface-hover); }
+
+.multiselect-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 220px;
+  max-height: 260px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.multiselect-panel label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  padding: 6px 4px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.multiselect-panel label:hover { background: var(--surface); }
+
+.multiselect-panel .ms-clear {
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
 }
 
 /* ---------- ผลลัพธ์ข่าว (การ์ด) ---------- */
@@ -172,9 +248,13 @@ select, .date-label input {
 .news-card {
   background: var(--surface);
   border: 1px solid var(--border);
+  border-left: 1px solid var(--border);
   border-radius: 12px;
   padding: 14px;
 }
+
+.news-card.attention-mid { border-left: 4px solid #E0A93B; }
+.news-card.attention-high { border-left: 4px solid #E0602E; }
 
 .news-card .badge {
   display: inline-block;
@@ -186,21 +266,22 @@ select, .date-label input {
   margin-right: 4px;
 }
 
-.badge.category { background: #EAF1FB; color: var(--accent); }
-.badge.impact-สูง { background: #FCEBEB; color: #791F1F; }
-.badge.impact-กลาง, .badge.impact-ต่ำ { background: #FAEEDA; color: #854F0B; }
-.badge.cambodia { background: #E9F5EA; color: #1B5E20; }
+.badge.category { background: #1B2A46; color: #8FBFFF; }
+.badge.impact-สูง { background: #3A1414; color: #FF9E9E; }
+.badge.impact-กลาง, .badge.impact-ต่ำ { background: #3A2A0F; color: #FFC978; }
+.badge.cambodia { background: #12331A; color: #8FD69B; }
 
 .news-card .title {
   font-size: 14px;
   font-weight: 600;
   margin: 6px 0;
   line-height: 1.4;
+  color: var(--text);
 }
 
 .news-card .summary {
   font-size: 13px;
-  color: #3D3D3D;
+  color: #C3C8D4;
   margin: 0 0 8px;
   line-height: 1.5;
 }
@@ -228,12 +309,11 @@ select, .date-label input {
 
 /* ---------- Responsive: แท็บเล็ต ---------- */
 @media (min-width: 640px) {
-  .stat-grid { grid-template-columns: repeat(4, 1fr); }
   .results-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ---------- Responsive: เดสก์ท็อป ---------- */
 @media (min-width: 1000px) {
   .results-grid { grid-template-columns: repeat(3, 1fr); }
-  .topbar h1 { font-size: 20px; }
+  .topbar h1 { font-size: 19px; }
 }
