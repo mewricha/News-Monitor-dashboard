@@ -63,6 +63,11 @@ body {
   margin-bottom: 16px;
 }
 
+/* การ์ดสถิติในแท็บกราฟสรุป มี 4 ช่อง จัดเป็น 2x2 แทน 3+1 */
+#chartStatGrid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .stat-card {
   background: var(--surface);
   border: 1px solid var(--border);

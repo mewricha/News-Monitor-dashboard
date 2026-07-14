@@ -356,11 +356,19 @@ document.getElementById('tabChartsBtn').addEventListener('click', function () { 
 // ============================================================
 function renderCharts() {
   var allTopics = groupIntoTopics(state.allNews);
+  var last14DaysNews = getLast14DaysNews();
 
   renderChartStats(allTopics);
   renderCategoryDonut(allTopics);
-  renderSourceBar(state.allNews);
+  renderSourceBar(last14DaysNews);
   renderTrendBar(state.allNews);
+}
+
+function getLast14DaysNews() {
+  var cutoff = new Date();
+  cutoff.setHours(0, 0, 0, 0);
+  cutoff.setDate(cutoff.getDate() - 13); // วันนี้ + ย้อนหลัง 13 วัน = 14 วัน
+  return state.allNews.filter(function (n) { return new Date(n.datetime) >= cutoff; });
 }
 
 function renderChartStats(allTopics) {
@@ -397,30 +405,41 @@ function renderCategoryDonut(allTopics) {
 }
 
 function renderSourceBar(newsList) {
-  var counts = {};
+  var bySource = {};
   newsList.forEach(function (n) {
     var s = (n.source || 'ไม่ระบุ').trim() || 'ไม่ระบุ';
-    counts[s] = (counts[s] || 0) + 1;
+    if (!bySource[s]) bySource[s] = { total: 0, cam: 0, neg: 0, other: 0 };
+    bySource[s].total++;
+    if (n.category === 'ชายแดนไทย-กัมพูชา') bySource[s].cam++;
+    else if (n.category === 'ข่าวผลกระทบลบ') bySource[s].neg++;
+    else bySource[s].other++;
   });
-  var top = Object.keys(counts)
-    .map(function (s) { return { source: s, count: counts[s] }; })
-    .sort(function (a, b) { return b.count - a.count; })
-    .slice(0, 8)
-    .reverse(); // ให้อันดับ 1 อยู่บนสุดของแท่งแนวนอน
+
+  var top = Object.keys(bySource)
+    .map(function (s) { return Object.assign({ source: s }, bySource[s]); })
+    .sort(function (a, b) { return b.total - a.total; })
+    .slice(0, 10);
+  // ไม่ต้อง reverse — Chart.js วางรายการแรกของ labels ไว้บนสุดของแท่งแนวนอนอยู่แล้ว
 
   new Chart(document.getElementById('sourceBar'), {
     type: 'bar',
     data: {
       labels: top.map(function (t) { return t.source; }),
-      datasets: [{ data: top.map(function (t) { return t.count; }), backgroundColor: '#6BA6FF', borderRadius: 4 }]
+      datasets: [
+        { label: 'ไทย-กัมพูชา', data: top.map(function (t) { return t.cam; }), backgroundColor: '#4CAF6D', stack: 's' },
+        { label: 'ข่าวลบ', data: top.map(function (t) { return t.neg; }), backgroundColor: '#E05C5C', stack: 's' },
+        { label: 'ข่าวทั่วไป', data: top.map(function (t) { return t.other; }), backgroundColor: '#6BA6FF', stack: 's' }
+      ]
     },
     options: {
       indexAxis: 'y',
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: 11 }, boxWidth: 12 } }
+      },
       scales: {
-        x: { ticks: { color: '#8891A5', precision: 0 }, grid: { color: '#22304A' } },
-        y: { ticks: { color: '#E8EAF0', font: { size: 11 } }, grid: { display: false } }
+        x: { stacked: true, ticks: { color: '#8891A5', precision: 0 }, grid: { color: '#22304A' } },
+        y: { stacked: true, ticks: { color: '#E8EAF0', font: { size: 11 } }, grid: { display: false } }
       }
     }
   });
