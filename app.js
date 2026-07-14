@@ -11,6 +11,25 @@ var state = {
 
 var THAI_MONTHS_ABBR = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
+// สีประจำหมวด (ใช้กับโดนัทชาร์ต) — ให้สอดคล้องกับสี badge หมวดข่าวที่ใช้อยู่แล้วในรายการข่าว
+var CATEGORY_COLORS = {
+  'ชายแดนไทย-กัมพูชา': '#4CAF6D',
+  'ข่าวผลกระทบลบ': '#E05C5C',
+  'ความมั่นคงชายแดนอื่น': '#D4B94E',
+  'สถานการณ์ จชต.': '#E27FB0',
+  'กำลังพล/ทหารใหม่': '#6BA6FF',
+  'ปราบปรามยาเสพติด': '#A784E8',
+  'ช่วยเหลือประชาชน/จิตอาสา': '#4FC3C3',
+  'การฝึก/ความพร้อมรบ': '#E8A15C',
+  'ความสัมพันธ์ทหารระหว่างประเทศ': '#9AA5B1',
+  'อื่นๆ': '#C9B48A'
+};
+var DEFAULT_CHART_COLOR = '#8FBFFF';
+
+function categoryColor(cat) {
+  return CATEGORY_COLORS[cat] || DEFAULT_CHART_COLOR;
+}
+
 function formatThaiDate(d) {
   return d.getDate() + ' ' + THAI_MONTHS_ABBR[d.getMonth()] + ' ' + (d.getFullYear() + 543);
 }
@@ -310,5 +329,147 @@ function clearAllFilters() {
 
 document.getElementById('exportBtn').addEventListener('click', exportCsv);
 document.getElementById('clearFiltersBtn').addEventListener('click', clearAllFilters);
+
+// ============================================================
+// แท็บสลับ: รายการข่าว / กราฟสรุป
+// ============================================================
+var chartsRendered = false;
+
+function switchTab(tab) {
+  var isList = tab === 'list';
+  document.getElementById('listView').style.display = isList ? '' : 'none';
+  document.getElementById('chartsView').style.display = isList ? 'none' : '';
+  document.getElementById('tabListBtn').classList.toggle('active', isList);
+  document.getElementById('tabChartsBtn').classList.toggle('active', !isList);
+
+  if (!isList && !chartsRendered) {
+    renderCharts();
+    chartsRendered = true;
+  }
+}
+
+document.getElementById('tabListBtn').addEventListener('click', function () { switchTab('list'); });
+document.getElementById('tabChartsBtn').addEventListener('click', function () { switchTab('charts'); });
+
+// ============================================================
+// กราฟสรุป — คำนวณจากข้อมูลทั้งหมด (ไม่ผูกกับตัวกรองของแท็บรายการข่าว)
+// ============================================================
+function renderCharts() {
+  var allTopics = groupIntoTopics(state.allNews);
+
+  renderChartStats(allTopics);
+  renderCategoryDonut(allTopics);
+  renderSourceBar(state.allNews);
+  renderTrendBar(state.allNews);
+}
+
+function renderChartStats(allTopics) {
+  var negCount = allTopics.filter(function (t) { return t.category === 'ข่าวผลกระทบลบ'; }).length;
+  var camCount = allTopics.filter(function (t) { return t.category === 'ชายแดนไทย-กัมพูชา'; }).length;
+
+  document.getElementById('chartStatGrid').innerHTML =
+    '<div class="stat-card"><p class="label">ข่าวทั้งหมด</p><p class="value">' + state.allNews.length + '</p></div>' +
+    '<div class="stat-card"><p class="label">ประเด็นทั้งหมด</p><p class="value accent">' + allTopics.length + '</p></div>' +
+    '<div class="stat-card"><p class="label">ข่าวลบ</p><p class="value" style="color:#E05C5C">' + negCount + '</p></div>' +
+    '<div class="stat-card"><p class="label">ไทย-กัมพูชา</p><p class="value" style="color:#4CAF6D">' + camCount + '</p></div>';
+}
+
+function renderCategoryDonut(allTopics) {
+  var counts = {};
+  allTopics.forEach(function (t) {
+    var cat = t.category || 'อื่นๆ';
+    counts[cat] = (counts[cat] || 0) + 1;
+  });
+  var labels = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; });
+  var data = labels.map(function (l) { return counts[l]; });
+  var colors = labels.map(categoryColor);
+
+  new Chart(document.getElementById('categoryDonut'), {
+    type: 'doughnut',
+    data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 1, borderColor: '#131B2E' }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: 11 }, boxWidth: 12, padding: 10 } }
+      }
+    }
+  });
+}
+
+function renderSourceBar(newsList) {
+  var counts = {};
+  newsList.forEach(function (n) {
+    var s = (n.source || 'ไม่ระบุ').trim() || 'ไม่ระบุ';
+    counts[s] = (counts[s] || 0) + 1;
+  });
+  var top = Object.keys(counts)
+    .map(function (s) { return { source: s, count: counts[s] }; })
+    .sort(function (a, b) { return b.count - a.count; })
+    .slice(0, 8)
+    .reverse(); // ให้อันดับ 1 อยู่บนสุดของแท่งแนวนอน
+
+  new Chart(document.getElementById('sourceBar'), {
+    type: 'bar',
+    data: {
+      labels: top.map(function (t) { return t.source; }),
+      datasets: [{ data: top.map(function (t) { return t.count; }), backgroundColor: '#6BA6FF', borderRadius: 4 }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#8891A5', precision: 0 }, grid: { color: '#22304A' } },
+        y: { ticks: { color: '#E8EAF0', font: { size: 11 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderTrendBar(newsList) {
+  var days = [];
+  for (var i = 13; i >= 0; i--) {
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - i);
+    days.push(d);
+  }
+
+  var camSeries = [], negSeries = [], otherSeries = [];
+  var labels = days.map(function (d) { return d.getDate() + ' ' + THAI_MONTHS_ABBR[d.getMonth()]; });
+
+  days.forEach(function (dayStart) {
+    var dayEnd = new Date(dayStart.getTime() + 86400000);
+    var itemsToday = newsList.filter(function (n) {
+      var t = new Date(n.datetime);
+      return t >= dayStart && t < dayEnd;
+    });
+    camSeries.push(itemsToday.filter(function (n) { return n.category === 'ชายแดนไทย-กัมพูชา'; }).length);
+    negSeries.push(itemsToday.filter(function (n) { return n.category === 'ข่าวผลกระทบลบ'; }).length);
+    otherSeries.push(itemsToday.filter(function (n) { return n.category !== 'ชายแดนไทย-กัมพูชา' && n.category !== 'ข่าวผลกระทบลบ'; }).length);
+  });
+
+  new Chart(document.getElementById('trendBar'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'ไทย-กัมพูชา', data: camSeries, backgroundColor: '#4CAF6D', stack: 's' },
+        { label: 'ข่าวลบ', data: negSeries, backgroundColor: '#E05C5C', stack: 's' },
+        { label: 'อื่นๆ', data: otherSeries, backgroundColor: '#6BA6FF', stack: 's' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: 11 }, boxWidth: 12 } }
+      },
+      scales: {
+        x: { stacked: true, ticks: { color: '#8891A5', font: { size: 10 } }, grid: { display: false } },
+        y: { stacked: true, ticks: { color: '#8891A5', precision: 0 }, grid: { color: '#22304A' } }
+      }
+    }
+  });
+}
 
 loadData();

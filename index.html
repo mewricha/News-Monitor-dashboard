@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard ติดตามข่าวสารกองทัพบก โดย ศปส.ทบ.</title>
 <link rel="stylesheet" href="style.css">
+<script src="chart.min.js"></script>
 </head>
 <body>
 
@@ -17,49 +18,80 @@
 
   <main class="container">
 
-    <section id="statGrid" class="stat-grid"></section>
+    <div class="tab-bar">
+      <button type="button" class="tab-btn active" id="tabListBtn">📋 รายการข่าว</button>
+      <button type="button" class="tab-btn" id="tabChartsBtn">📊 กราฟสรุป</button>
+    </div>
 
-    <section class="filter-bar">
-      <input type="text" id="searchInput" placeholder="ค้นหาหัวข้อ/เนื้อหา/แหล่งข่าว..." />
+    <div id="listView">
 
-      <div class="filter-row">
-        <div class="multiselect" id="categoryMultiselect">
-          <button type="button" class="multiselect-toggle" id="categoryToggle">ทุกหมวด ▾</button>
-          <div class="multiselect-panel" id="categoryPanel" hidden></div>
+      <section id="statGrid" class="stat-grid"></section>
+
+      <section class="filter-bar">
+        <input type="text" id="searchInput" placeholder="ค้นหาหัวข้อ/เนื้อหา/แหล่งข่าว..." />
+
+        <div class="filter-row">
+          <div class="multiselect" id="categoryMultiselect">
+            <button type="button" class="multiselect-toggle" id="categoryToggle">ทุกหมวด ▾</button>
+            <div class="multiselect-panel" id="categoryPanel" hidden></div>
+          </div>
+
+          <div class="multiselect" id="sourceMultiselect">
+            <button type="button" class="multiselect-toggle" id="sourceToggle">ทุกสำนักข่าว ▾</button>
+            <div class="multiselect-panel" id="sourcePanel" hidden></div>
+          </div>
         </div>
 
-        <div class="multiselect" id="sourceMultiselect">
-          <button type="button" class="multiselect-toggle" id="sourceToggle">ทุกสำนักข่าว ▾</button>
-          <div class="multiselect-panel" id="sourcePanel" hidden></div>
+        <div class="filter-row">
+          <select id="sortOrder">
+            <option value="desc">ใหม่ล่าสุดก่อน</option>
+            <option value="asc">เก่าสุดก่อน</option>
+            <option value="count">นำเสนอมากสุดก่อน</option>
+          </select>
+        </div>
+
+        <div class="filter-row">
+          <label class="date-label">จาก <input type="date" id="dateFrom"></label>
+          <label class="date-label">ถึง <input type="date" id="dateTo"></label>
+        </div>
+
+        <div class="filter-row">
+          <label class="checkbox-label"><input type="checkbox" id="onlyToday"> ข่าววันนี้</label>
+          <label class="checkbox-label"><input type="checkbox" id="onlyLast3Days"> ข่าว 3 วันย้อนหลัง</label>
+          <button id="clearFiltersBtn" class="clear-btn">✕ ล้างตัวกรองทั้งหมด</button>
+          <button id="exportBtn" class="export-btn">⬇ ส่งออก CSV</button>
+        </div>
+      </section>
+
+      <p id="resultCount" class="result-count"></p>
+
+      <section id="resultsGrid" class="results-grid">
+        <div class="loading">กำลังโหลดข้อมูล...</div>
+      </section>
+
+    </div>
+
+    <div id="chartsView" style="display:none">
+
+      <section id="chartStatGrid" class="stat-grid"></section>
+
+      <div class="chart-grid">
+        <div class="chart-card">
+          <p class="chart-title">สัดส่วนตามหมวดประเด็น</p>
+          <div class="chart-canvas-wrap"><canvas id="categoryDonut"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <p class="chart-title">สำนักข่าวยอดนิยม (Top 8)</p>
+          <div class="chart-canvas-wrap"><canvas id="sourceBar"></canvas></div>
         </div>
       </div>
 
-      <div class="filter-row">
-        <select id="sortOrder">
-          <option value="desc">ใหม่ล่าสุดก่อน</option>
-          <option value="asc">เก่าสุดก่อน</option>
-          <option value="count">นำเสนอมากสุดก่อน</option>
-        </select>
+      <div class="chart-card">
+        <p class="chart-title">แนวโน้มข่าวรายวัน 14 วันล่าสุด</p>
+        <div class="chart-canvas-wrap tall"><canvas id="trendBar"></canvas></div>
       </div>
 
-      <div class="filter-row">
-        <label class="date-label">จาก <input type="date" id="dateFrom"></label>
-        <label class="date-label">ถึง <input type="date" id="dateTo"></label>
-      </div>
-
-      <div class="filter-row">
-        <label class="checkbox-label"><input type="checkbox" id="onlyToday"> ข่าววันนี้</label>
-        <label class="checkbox-label"><input type="checkbox" id="onlyLast3Days"> ข่าว 3 วันย้อนหลัง</label>
-        <button id="clearFiltersBtn" class="clear-btn">✕ ล้างตัวกรองทั้งหมด</button>
-        <button id="exportBtn" class="export-btn">⬇ ส่งออก CSV</button>
-      </div>
-    </section>
-
-    <p id="resultCount" class="result-count"></p>
-
-    <section id="resultsGrid" class="results-grid">
-      <div class="loading">กำลังโหลดข้อมูล...</div>
-    </section>
+    </div>
 
   </main>
 
@@ -70,3 +102,4 @@
   <script src="app.js"></script>
 </body>
 </html>
+
