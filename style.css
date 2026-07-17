@@ -311,6 +311,7 @@ select, .date-label input {
 }
 
 .news-card {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 1px solid var(--border);
@@ -318,8 +319,27 @@ select, .date-label input {
   padding: 14px;
 }
 
-.news-card.attention-mid { border-left: 4px solid #E0A93B; }
-.news-card.attention-high { border-left: 4px solid #E0602E; }
+/* ป้าย "ประเด็นร้อน" 3 ระดับ (อิงจำนวนลิงก์ที่นำเสนอในประเด็น) */
+.news-card.attention-1 { border-left: 4px solid #E0A93B; }
+.news-card.attention-2 { border-left: 4px solid #E07B2E; }
+.news-card.attention-3 { border-left: 4px solid #E05C5C; }
+
+.hot-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 13px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 999px;
+  letter-spacing: -1px;
+  white-space: nowrap;
+  cursor: default;
+  z-index: 1;
+}
+.hot-badge.attention-1 { background: rgba(224,169,59,0.16); border: 1px solid #E0A93B; }
+.hot-badge.attention-2 { background: rgba(224,123,46,0.16); border: 1px solid #E07B2E; }
+.hot-badge.attention-3 { background: rgba(224,92,92,0.18);  border: 1px solid #E05C5C; }
 
 .news-card .badge {
   display: inline-block;

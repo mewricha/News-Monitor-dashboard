@@ -226,9 +226,14 @@ function renderResults(topics) {
 
     var badges = '<span class="badge ' + categoryBadgeClass + '">' + escapeHtml(t.category) + '</span>';
 
-    var attentionClass = '';
-    if (t.count >= 20) attentionClass = ' attention-high';
-    else if (t.count >= 10) attentionClass = ' attention-mid';
+    // ป้าย "ประเด็นร้อน" 3 ระดับ อิงจำนวนลิงก์ที่นำเสนอในประเด็น (t.count นับทุกลิงก์ ซ้ำสำนักได้)
+    var attentionClass = '', hotBadge = '';
+    if (t.count >= 10) { attentionClass = ' attention-3'; hotBadge = '🔥🔥🔥'; }
+    else if (t.count >= 5) { attentionClass = ' attention-2'; hotBadge = '🔥🔥'; }
+    else if (t.count >= 3) { attentionClass = ' attention-1'; hotBadge = '🔥'; }
+    var hotBadgeHtml = hotBadge
+      ? '<span class="hot-badge' + attentionClass + '" title="นำเสนอ ' + t.count + ' ครั้ง">' + hotBadge + '</span>'
+      : '';
 
     var sourcesHtml = t.sources.slice(0, 5).map(function (s) {
       return '<a href="' + s.url + '" target="_blank" rel="noopener">🔗 ' + escapeHtml(s.source) + '</a>';
@@ -240,7 +245,7 @@ function renderResults(topics) {
     var srcCount = uniqueSourceCount(t);
     var metaText = formatThaiDate(new Date(t.earliestDate)) + ' · นำเสนอ ' + t.count + ' ครั้ง · ' + srcCount + ' สำนักข่าว';
 
-    return '<div class="news-card' + attentionClass + '">' + badges +
+    return '<div class="news-card' + attentionClass + '">' + hotBadgeHtml + badges +
       '<p class="title">' + escapeHtml(t.title) + '</p>' +
       '<p class="summary">' + escapeHtml(t.summary) + '</p>' +
       '<p class="meta">' + metaText + '</p>' +
