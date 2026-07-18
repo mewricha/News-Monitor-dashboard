@@ -383,8 +383,8 @@ function renderChartStats(allTopics) {
   document.getElementById('chartStatGrid').innerHTML =
     '<div class="stat-card"><p class="label">ข่าวทั้งหมด</p><p class="value">' + state.allNews.length + '</p></div>' +
     '<div class="stat-card"><p class="label">ประเด็นทั้งหมด</p><p class="value accent">' + allTopics.length + '</p></div>' +
-    '<div class="stat-card"><p class="label">ข่าวลบ</p><p class="value" style="color:#E05C5C">' + negCount + '</p></div>' +
-    '<div class="stat-card"><p class="label">ไทย-กัมพูชา</p><p class="value" style="color:#4CAF6D">' + camCount + '</p></div>';
+    '<div class="stat-card"><p class="label">ประเด็นข่าวลบ</p><p class="value" style="color:#E05C5C">' + negCount + '</p></div>' +
+    '<div class="stat-card"><p class="label">ประเด็นไทย-กัมพูชา</p><p class="value" style="color:#4CAF6D">' + camCount + '</p></div>';
 }
 
 function renderCategoryDonut(allTopics) {
@@ -403,6 +403,13 @@ function renderCategoryDonut(allTopics) {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
+        subtitle: {
+          display: true,
+          text: 'แบ่งตามหมวดหลัก (นับเป็นประเด็น)',
+          color: '#9AA6C0',
+          font: { size: 11 },
+          padding: { bottom: 6 }
+        },
         legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: 11 }, boxWidth: 12, padding: 10 } }
       }
     }
@@ -440,6 +447,13 @@ function renderSourceBar(newsList) {
       indexAxis: 'y',
       responsive: true, maintainAspectRatio: false,
       plugins: {
+        subtitle: {
+          display: true,
+          text: 'นับเป็นจำนวนข่าว (14 วันล่าสุด)',
+          color: '#9AA6C0',
+          font: { size: 11 },
+          padding: { bottom: 6 }
+        },
         legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: 11 }, boxWidth: 12 } }
       },
       scales: {
@@ -486,6 +500,13 @@ function renderTrendBar(newsList) {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
+        subtitle: {
+          display: true,
+          text: 'นับเป็นจำนวนข่าว',
+          color: '#9AA6C0',
+          font: { size: 11 },
+          padding: { bottom: 6 }
+        },
         legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: 11 }, boxWidth: 12 } }
       },
       scales: {
