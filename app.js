@@ -357,9 +357,61 @@ document.getElementById('tabListBtn').addEventListener('click', function () { sw
 document.getElementById('tabChartsBtn').addEventListener('click', function () { switchTab('charts'); });
 
 // ============================================================
+// ปรับขนาดตัวอักษร (ช่วยผู้ที่มีปัญหาด้านสายตา)
+//  - ข้อความทั้งหน้าใช้หน่วย rem จึงขยายตาม font-size ของ <html>
+//  - ตัวอักษรในกราฟ Chart.js เป็น px จึงต้องคูณสเกลเองแล้ววาดกราฟใหม่
+// ============================================================
+var FONT_SCALE_KEY = 'dashboardFontScale';
+var fontScale = 1;
+
+/** คืนขนาดฟอนต์สำหรับกราฟตามสเกลปัจจุบัน */
+function cfs(base) {
+  return Math.round(base * fontScale);
+}
+
+function applyFontScale(scale, save) {
+  fontScale = parseFloat(scale) || 1;
+  document.documentElement.style.fontSize = Math.round(100 * fontScale) + '%';
+
+  var btns = document.querySelectorAll('.fontsize-btn');
+  for (var i = 0; i < btns.length; i++) {
+    var isActive = parseFloat(btns[i].getAttribute('data-fontscale')) === fontScale;
+    btns[i].classList.toggle('active', isActive);
+    btns[i].setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  }
+
+  if (save) {
+    try { localStorage.setItem(FONT_SCALE_KEY, String(fontScale)); } catch (e) { /* เบราว์เซอร์ปิด storage ก็ยังใช้งานได้ปกติ */ }
+  }
+
+  if (chartsRendered) renderCharts(); // วาดกราฟใหม่ให้ตัวอักษรในกราฟขยายตาม
+}
+
+function initFontScale() {
+  var saved = 1;
+  try { saved = parseFloat(localStorage.getItem(FONT_SCALE_KEY)) || 1; } catch (e) { saved = 1; }
+  applyFontScale(saved, false);
+
+  var btns = document.querySelectorAll('.fontsize-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].addEventListener('click', function () {
+      applyFontScale(this.getAttribute('data-fontscale'), true);
+    });
+  }
+}
+
+initFontScale();
+
+// ============================================================
 // กราฟสรุป — คำนวณจากข้อมูลทั้งหมด (ไม่ผูกกับตัวกรองของแท็บรายการข่าว)
 // ============================================================
 function renderCharts() {
+  // ทำลายกราฟเดิมก่อนวาดใหม่ (เช่น ตอนเปลี่ยนขนาดตัวอักษร) กันกราฟซ้อนทับกัน
+  ['categoryDonut', 'sourceBar', 'trendBar'].forEach(function (id) {
+    var existing = Chart.getChart(id);
+    if (existing) existing.destroy();
+  });
+
   var allTopics = groupIntoTopics(state.allNews);
   var last14DaysNews = getLast14DaysNews();
 
@@ -407,10 +459,10 @@ function renderCategoryDonut(allTopics) {
           display: true,
           text: 'แบ่งตามหมวดหลัก (นับเป็นประเด็น)',
           color: '#9AA6C0',
-          font: { size: 11 },
+          font: { size: cfs(11) },
           padding: { bottom: 6 }
         },
-        legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: 11 }, boxWidth: 12, padding: 10 } }
+        legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: cfs(11) }, boxWidth: 12, padding: 10 } }
       }
     }
   });
@@ -451,14 +503,14 @@ function renderSourceBar(newsList) {
           display: true,
           text: 'นับเป็นจำนวนข่าว (14 วันล่าสุด)',
           color: '#9AA6C0',
-          font: { size: 11 },
+          font: { size: cfs(11) },
           padding: { bottom: 6 }
         },
-        legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: 11 }, boxWidth: 12 } }
+        legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: cfs(11) }, boxWidth: 12 } }
       },
       scales: {
         x: { stacked: true, ticks: { color: '#8891A5', precision: 0 }, grid: { color: '#22304A' } },
-        y: { stacked: true, ticks: { color: '#E8EAF0', font: { size: 11 } }, grid: { display: false } }
+        y: { stacked: true, ticks: { color: '#E8EAF0', font: { size: cfs(11) } }, grid: { display: false } }
       }
     }
   });
@@ -504,13 +556,13 @@ function renderTrendBar(newsList) {
           display: true,
           text: 'นับเป็นจำนวนข่าว',
           color: '#9AA6C0',
-          font: { size: 11 },
+          font: { size: cfs(11) },
           padding: { bottom: 6 }
         },
-        legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: 11 }, boxWidth: 12 } }
+        legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: cfs(11) }, boxWidth: 12 } }
       },
       scales: {
-        x: { stacked: true, ticks: { color: '#8891A5', font: { size: 10 } }, grid: { display: false } },
+        x: { stacked: true, ticks: { color: '#8891A5', font: { size: cfs(10) } }, grid: { display: false } },
         y: { stacked: true, ticks: { color: '#8891A5', precision: 0 }, grid: { color: '#22304A' } }
       }
     }
