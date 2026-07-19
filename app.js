@@ -245,13 +245,28 @@ function renderResults(topics) {
     var srcCount = uniqueSourceCount(t);
     var metaText = formatThaiDate(new Date(t.earliestDate)) + ' · นำเสนอ ' + t.count + ' ครั้ง · ' + srcCount + ' สำนักข่าว';
 
+    // เนื้อหาย่อ: ตัดแสดง 5 บรรทัด (CSS line-clamp) ถ้ายาวเกิน ~180 ตัวอักษร แสดงปุ่ม "อ่านเพิ่ม"
+    var summaryText = t.summary || '';
+    var summaryHtml = '<p class="summary">' + escapeHtml(summaryText) + '</p>';
+    if (summaryText.length > 180) {
+      summaryHtml += '<button type="button" class="read-more" onclick="toggleSummary(this)">อ่านเพิ่ม ▾</button>';
+    }
+
     return '<div class="news-card' + attentionClass + '">' + hotBadgeHtml + badges +
       '<p class="title">' + escapeHtml(t.title) + '</p>' +
-      '<p class="summary">' + escapeHtml(t.summary) + '</p>' +
+      summaryHtml +
       '<p class="meta">' + metaText + '</p>' +
       '<div class="sources">' + sourcesHtml + '</div>' +
       '</div>';
   }).join('');
+}
+
+// สลับย่อ/ขยายเนื้อหาย่อในการ์ดข่าว (เรียกจากปุ่ม "อ่านเพิ่ม")
+function toggleSummary(btn) {
+  var summary = btn.previousElementSibling;
+  if (!summary || !summary.classList.contains('summary')) return;
+  var expanded = summary.classList.toggle('expanded');
+  btn.textContent = expanded ? 'ย่อ ▴' : 'อ่านเพิ่ม ▾';
 }
 
 function escapeHtml(str) {
