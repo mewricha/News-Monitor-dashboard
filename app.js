@@ -11,6 +11,76 @@ var state = {
 
 var THAI_MONTHS_ABBR = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
+// ============================================================
+// ตารางแปลง "โดเมน → ชื่อสำนักข่าว" สำหรับการแสดงผล
+// (มีตารางเดียวกันในโค้ด Apps Script สำหรับรายงาน LINE — แก้ไขให้ตรงกันทั้งสองไฟล์)
+// ============================================================
+var SOURCE_NAME_URL_RULES = [
+  ['topnews.co.th/news-clip', 'TOP News (video)']
+];
+var SOURCE_NAMES = {
+  'topnews.co.th': 'TOP News',
+  'naewna.com': 'แนวหน้า',
+  'siamrath.co.th': 'สยามรัฐ',
+  'mgronline.com': 'ผู้จัดการออนไลน์',
+  'matichon.co.th': 'มติชน',
+  'dailynews.co.th': 'เดลินิวส์',
+  'khaosod.co.th': 'ข่าวสด',
+  'thainews.prd.go.th': 'NBT Connext',
+  'thaipost.net': 'ไทยโพสต์',
+  'thairath.co.th': 'ไทยรัฐ',
+  'bangkokbiznews.com': 'กรุงเทพธุรกิจ',
+  'banmuang.co.th': 'บ้านเมือง',
+  'chiangmainews.co.th': 'เชียงใหม่นิวส์',
+  'thaipbs.or.th': 'Thai PBS',
+  'nationtv.tv': 'เนชั่นทีวี',
+  'pptvhd36.com': 'PPTV HD36',
+  'news1live.com': 'NEWS1',
+  'siamnews.com': 'สยามนิวส์',
+  'antifakenewscenter.com': 'ศูนย์ต่อต้านข่าวปลอม',
+  'fm91bkk.com': 'FM91',
+  'thestandard.co': 'THE STANDARD',
+  'innnews.co.th': 'INN News',
+  'ch3plus.com': 'ช่อง 3',
+  'komchadluek.net': 'คมชัดลึก',
+  'prd.go.th': 'กรมประชาสัมพันธ์',
+  'js100.com': 'จส.100',
+  'sondhitalk.com': 'Sondhi Talk',
+  'spacebar.th': 'SPACEBAR',
+  'tnnthailand.com': 'TNN',
+  'thaich8.com': 'ช่อง 8',
+  'bangkok-today.com': 'Bangkok Today',
+  'region3.prd.go.th': 'ปชส.เขต 3',
+  'thansettakij.com': 'ฐานเศรษฐกิจ',
+  'one31.net': 'ช่องวัน 31',
+  'thailandplus.tv': 'Thailand Plus',
+  'infoquest.co.th': 'อินโฟเควสท์',
+  'voicetv.co.th': 'Voice TV',
+  'posttoday.com': 'โพสต์ทูเดย์',
+  'ejan.co': 'อีจัน',
+  'surin.prd.go.th': 'ปชส.สุรินทร์',
+  'bhumjaithai.com': 'พรรคภูมิใจไทย',
+  'hatyaifocus.com': 'หาดใหญ่โฟกัส',
+  'moneyandbanking.co.th': 'การเงินธนาคาร',
+  'thaigov.go.th': 'รัฐบาลไทย',
+  'royaloffice.th': 'หน่วยราชการในพระองค์',
+  'ops.moe.go.th': 'ศธ.',
+  'pr.moph.go.th': 'กระทรวงสาธารณสุข',
+  'theactive.thaipbs.or.th': 'The Active',
+  'transbordernews.in.th': 'สำนักข่าวชายขอบ',
+  'twonewsonline.com': 'ทูนิวส์ออนไลน์'
+};
+
+// แปลงโดเมนเป็นชื่อสำนักข่าว: กฎ URL ก่อน → ตารางโดเมน → ไม่เจอคืนค่าเดิม
+function displaySourceName(source, url) {
+  var u = (url || '').toString().toLowerCase();
+  for (var i = 0; i < SOURCE_NAME_URL_RULES.length; i++) {
+    if (u && u.indexOf(SOURCE_NAME_URL_RULES[i][0]) !== -1) return SOURCE_NAME_URL_RULES[i][1];
+  }
+  var s = (source || '').toString().trim();
+  return SOURCE_NAMES[s.toLowerCase()] || s;
+}
+
 // สีประจำหมวด (ใช้กับโดนัทชาร์ต) — ให้สอดคล้องกับสี badge หมวดข่าวที่ใช้อยู่แล้วในรายการข่าว
 var CATEGORY_COLORS = {
   'ชายแดนไทย-กัมพูชา': '#4CAF6D',
@@ -39,6 +109,11 @@ async function loadData() {
     var res = await fetch('data/news.json', { cache: 'no-store' });
     var data = await res.json();
     state.allNews = data.news || [];
+
+    // แปลงโดเมนเป็นชื่อสำนักข่าวตั้งแต่โหลด — การ์ด/ตัวกรอง/กราฟ ได้ชื่อเดียวกันทุกจุด
+    state.allNews.forEach(function (n) {
+      n.source = displaySourceName(n.source, n.url);
+    });
 
     var updatedEl = document.getElementById('lastUpdated');
     if (data.generatedAt) {
