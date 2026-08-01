@@ -84,8 +84,8 @@ function displaySourceName(source, url) {
 // สีประจำหมวด (ใช้กับโดนัทชาร์ต) — ให้สอดคล้องกับสี badge หมวดข่าวที่ใช้อยู่แล้วในรายการข่าว
 var CATEGORY_COLORS = {
   'ชายแดนไทย-กัมพูชา': '#4CAF6D',
-  'ข่าวผลกระทบลบ': '#E05C5C',
   'ความมั่นคงชายแดนอื่น': '#D4B94E',
+  'พิธีการ/ประเพณีทหาร': '#C9A227',
   'สถานการณ์ จชต.': '#E27FB0',
   'กำลังพล/ทหารใหม่': '#6BA6FF',
   'ปราบปรามยาเสพติด': '#A784E8',
@@ -294,7 +294,8 @@ function renderResults(topics) {
 
   grid.innerHTML = topics.map(function (t) {
     var categoryBadgeClass = 'category';
-    if (t.category === 'ข่าวผลกระทบลบ') categoryBadgeClass = 'cat-negative';
+    // ⚠️ 2 ส.ค. 69: ข่าวลบเป็น "ธง" ไม่ใช่หมวด — ใช้ t.isNegative แทนการเทียบชื่อหมวด
+    if (t.isNegative) categoryBadgeClass = 'cat-negative';
     else if (t.category === 'ชายแดนไทย-กัมพูชา') categoryBadgeClass = 'cat-cambodia';
     else if (t.category === 'ความมั่นคงชายแดนอื่น') categoryBadgeClass = 'cat-border-other';
     else if (t.category === 'สถานการณ์ จชต.') categoryBadgeClass = 'cat-jcht';
@@ -519,7 +520,8 @@ function getLast14DaysNews() {
 }
 
 function renderChartStats(allTopics) {
-  var negCount = allTopics.filter(function (t) { return t.category === 'ข่าวผลกระทบลบ'; }).length;
+  // ⚠️ นับจากธง isNegative — เดิมนับด้วยหมวด ทำให้ข่าวลบเรื่องกัมพูชาตกหล่น 18%
+  var negCount = allTopics.filter(function (t) { return t.isNegative; }).length;
   var camCount = allTopics.filter(function (t) { return t.category === 'ชายแดนไทย-กัมพูชา'; }).length;
 
   document.getElementById('chartStatGrid').innerHTML =
@@ -564,8 +566,8 @@ function renderSourceBar(newsList) {
     var s = (n.source || 'ไม่ระบุ').trim() || 'ไม่ระบุ';
     if (!bySource[s]) bySource[s] = { total: 0, cam: 0, neg: 0, other: 0 };
     bySource[s].total++;
-    if (n.category === 'ชายแดนไทย-กัมพูชา') bySource[s].cam++;
-    else if (n.category === 'ข่าวผลกระทบลบ') bySource[s].neg++;
+    if (n.isNegative) bySource[s].neg++;
+    else if (n.category === 'ชายแดนไทย-กัมพูชา') bySource[s].cam++;
     else bySource[s].other++;
   });
 
@@ -624,9 +626,9 @@ function renderTrendBar(newsList) {
       var t = new Date(n.datetime);
       return t >= dayStart && t < dayEnd;
     });
-    camSeries.push(itemsToday.filter(function (n) { return n.category === 'ชายแดนไทย-กัมพูชา'; }).length);
-    negSeries.push(itemsToday.filter(function (n) { return n.category === 'ข่าวผลกระทบลบ'; }).length);
-    otherSeries.push(itemsToday.filter(function (n) { return n.category !== 'ชายแดนไทย-กัมพูชา' && n.category !== 'ข่าวผลกระทบลบ'; }).length);
+    negSeries.push(itemsToday.filter(function (n) { return n.isNegative; }).length);
+    camSeries.push(itemsToday.filter(function (n) { return !n.isNegative && n.category === 'ชายแดนไทย-กัมพูชา'; }).length);
+    otherSeries.push(itemsToday.filter(function (n) { return !n.isNegative && n.category !== 'ชายแดนไทย-กัมพูชา'; }).length);
   });
 
   new Chart(document.getElementById('trendBar'), {
