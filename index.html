@@ -4,6 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard ติดตามข่าวสารกองทัพบก โดย ศปส.ทบ.</title>
+
+<!-- ⚠️ ต้องอยู่ก่อน style.css และต้องเป็น inline script (ไม่ใช่ app.js)
+     ถ้าไปตั้ง data-theme ใน app.js ซึ่งโหลดท้ายหน้า ผู้ใช้โหมดมืดจะเห็น
+     "แฟลชขาว" ทุกครั้งที่เปิดหน้า เพราะเบราว์เซอร์วาดพื้นสว่างไปแล้วก่อนสคริปต์รัน
+     ลำดับตัดสิน: ค่าที่ผู้ใช้เคยเลือก → ค่าของเครื่อง (OS) → สว่าง -->
+<script>
+(function () {
+  var t = null;
+  try { t = localStorage.getItem('dashboardTheme'); } catch (e) { t = null; }
+  if (t !== 'dark' && t !== 'light') {
+    t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="style.css">
 <script src="chart.min.js"></script>
 </head>
@@ -16,13 +35,17 @@
         <p id="lastUpdated" class="last-updated">กำลังโหลด...</p>
       </div>
 
-      <div class="fontsize-bar" role="group" aria-label="ปรับขนาดตัวอักษร">
-        <span class="fontsize-label">ขนาดตัวอักษร</span>
-        <div class="fontsize-btns">
-          <button type="button" class="fontsize-btn" data-fontscale="1">ปกติ</button>
-          <button type="button" class="fontsize-btn" data-fontscale="1.15">ใหญ่</button>
-          <button type="button" class="fontsize-btn" data-fontscale="1.3">ใหญ่มาก</button>
+      <div class="topbar-tools">
+        <div class="fontsize-bar" role="group" aria-label="ปรับขนาดตัวอักษร">
+          <span class="fontsize-label">ขนาดตัวอักษร</span>
+          <div class="fontsize-btns">
+            <button type="button" class="fontsize-btn" data-fontscale="1">ปกติ</button>
+            <button type="button" class="fontsize-btn" data-fontscale="1.15">ใหญ่</button>
+            <button type="button" class="fontsize-btn" data-fontscale="1.3">ใหญ่มาก</button>
+          </div>
         </div>
+
+        <button type="button" class="theme-btn" id="themeBtn" aria-label="สลับโหมดมืด/สว่าง"></button>
       </div>
     </div>
   </header>

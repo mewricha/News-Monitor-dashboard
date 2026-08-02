@@ -1,28 +1,123 @@
-* { box-sizing: border-box; }
+/* ============================================================
+   ธีมแดชบอร์ดติดตามข่าวสารกองทัพบก — โทน Navy & Red (2 ส.ค. 69)
+   ------------------------------------------------------------
+   ⚠️ กติกาสี ห้ามแหก มี 3 ข้อเท่านั้น
+      1. แดง = "ข่าวลบ" เท่านั้น ห้ามใช้กับอย่างอื่นเด็ดขาด
+         (ของเดิมแถบ "ประเด็นร้อน" ระดับ 3 ใช้ #E05C5C ซ้ำกับข่าวลบเป๊ะ
+          ทำให้แยกไม่ออกว่าการ์ดแดงแปลว่า "ร้อน" หรือ "ลบ" — ถอดทิ้งแล้ว)
+      2. accent เขียว = สิ่งที่กดได้ + ข่าวที่ไม่ลบ
+      3. หมวดข่าวไม่มีสีประจำ ใช้ชิปเส้นขอบสีเดียวกันหมด
+         (พาเลตต์นี้เกือบเป็นสีเดียว ทำ 10 สีให้แยกออกไม่ได้จริง
+          และ CATEGORY_COLORS ใน app.js เป็นโค้ดตายอยู่แล้ว ไม่มีใครเรียก)
+
+   ⚠️ ห้ามเขียน hex ลงในไฟล์นี้นอกบล็อกโทเคนข้างล่าง และห้ามเขียนใน app.js
+      กราฟอ่านสีจากโทเคนชุดนี้ผ่าน cssVar() แก้ที่เดียวเปลี่ยนทั้งระบบ
+
+   ⚠️ โหมดมืด/สว่างกำหนดด้วย data-theme บน <html> เท่านั้น
+      สคริปต์ใน <head> ของ index.html เป็นคนตั้งค่า (อ่าน localStorage → OS)
+      จงใจไม่ใช้ @media (prefers-color-scheme) เพื่อไม่ให้มีโทเคน 2 ชุดต้องซิงก์กัน
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   สีต้นทาง 10 ช่องจากพาเลตต์ที่ผู้ใช้เลือก (เรียงตามระดับเทา)
+     4%  #1C3A5E กรมเข้ม   |   7%  #34496E กรมม่วง   |   8%  #2E5578 กรมท่า
+    17%  #3F7A9C ฟ้าเข้ม   |  19%  #E23744 แดง      |  33%  #6DA4BB ฟ้าเทา
+    45%  #EF9C9C ชมพูอ่อน  |  63%  #A9D9DC ฟ้าอ่อน  |  74%  #C9E5E3 ฟ้าซีด
+    92%  #EFF9F1 ขาวมิ้นต์
+
+   ⭐ ข้อได้เปรียบใหญ่ของพาเลตต์นี้: คู่หลักคือ "แดง กับ น้ำเงิน" ไม่ใช่ "แดง กับ เขียว"
+      แดง-เขียว เป็นแกนที่คนตาบอดสีชนิดที่พบบ่อยที่สุดแยกไม่ออก
+      แดง-น้ำเงิน เป็นแกนที่แยกออกทุกชนิด และพาเลตต์นี้ยังมีช่วงความสว่าง
+      กว้างตั้งแต่ 4% ถึง 92% จึงทำ "บันไดความสว่าง" ให้แท่งกราฟได้จริง
+      (พาเลตต์เขียวชุดก่อนทำไม่ได้ — ลบกับไม่ลบสว่างเท่ากันจนกลืน)
+   ------------------------------------------------------------ */
 
 :root {
-  --bg: #0B1220;
-  --surface: #131B2E;
-  --surface-hover: #1A2540;
-  --border: #22304A;
-  --text: #E8EAF0;
-  --text-secondary: #8891A5;
-  --accent: #6BA6FF;
-  --danger: #FF6B6B;
+  color-scheme: light;
+
+  --bg: #EEF6F5;
+  --surface: #FFFFFF;
+  --surface-2: #DCEDEC;
+  --surface-hover: #E5F1F0;
+
+  --border: #C9E5E3;
+  --border-strong: #6DA4BB;
+  --grid: #DCEDEC;
+
+  --text: #1C3A5E;
+  --text-2: #2E5578;
+  --text-secondary: #4A6B85;
+
+  --accent: #2E5578;
+  --accent-on: #FFFFFF;
+
+  --neg: #C22836;         /* แดงเข้ม — ใช้เป็น "ตัวอักษร" บนพื้นอ่อน */
+  --neg-fill: #C22836;    /* แดงเข้ม — ใช้เป็น "พื้น" ของแท็กข่าวลบ */
+  --neg-on: #FFFFFF;      /* ตัวอักษรบน --neg-fill */
+  --neg-bar: #E23744;     /* แดงสด — กรอบการ์ดข่าวลบ */
+  --neg-bg: #FDECEE;
+
+  /* บันไดความสว่างของแท่งกราฟ — ระดับเทา ลบ 19% / ไม่ลบ 2% / ทั่วไป 63%
+     ⚠️ ต้องห่างกันด้วย "ความสว่าง" ไม่ใช่แค่ "สี"
+        เพราะแท่งซ้อนติดกัน ถ้าสว่างเท่ากันจะกลืนเป็นแท่งเดียว */
+  --chart-neg: #E23744;
+  --chart-main: #14293F;
+  --chart-soft: #A9D9DC;
+
+  --shadow-panel: 0 8px 24px rgba(28, 58, 94, 0.16);
 }
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #10202F;
+  --surface: #1B3454;
+  --surface-2: #253F60;
+  --surface-hover: #2A4769;
+
+  --border: #34496E;
+  --border-strong: #517E9B;
+  --grid: #2A4364;
+
+  --text: #EAF4F3;
+  --text-2: #C9E5E3;
+  --text-secondary: #92B4C4;
+
+  --accent: #A9D9DC;
+  --accent-on: #10202F;
+
+  /* ⚠️ โหมดมืดกลับด้าน: แท็กข่าวลบใช้ "พื้นชมพูอ่อน + ตัวอักษรกรมเข้ม"
+     ถ้าใช้พื้นแดงสด + ตัวอักษรขาวเหมือนโหมดสว่าง จะได้แค่ 4.32:1 ไม่ผ่านเกณฑ์ */
+  --neg: #EF9C9C;
+  --neg-fill: #EF9C9C;
+  --neg-on: #10202F;
+  --neg-bar: #E23744;
+  --neg-bg: #38202A;
+
+  /* บันไดความสว่าง โหมดมืด — ลบ 21% / ไม่ลบ 82% / ทั่วไป 8% */
+  --chart-neg: #E04A55;
+  --chart-main: #D6EEEF;
+  --chart-soft: #2E5578;
+
+  --shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font-family: -apple-system, "Segoe UI", "Sarabun", Tahoma, sans-serif;
+  font-family: "Anuphan", "Sarabun", -apple-system, "Segoe UI", Tahoma, sans-serif;
   background: var(--bg);
   color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* ---------- หัวเว็บ ---------- */
 .topbar {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  padding: 16px;
+  padding: 18px 16px;
 }
 
 .topbar-inner {
@@ -31,16 +126,37 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
-/* ---------- ปรับขนาดตัวอักษร (ช่วยผู้มีปัญหาสายตา) ---------- */
+.topbar h1 {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 5px;
+  color: var(--text);
+}
+
+.last-updated {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* ---------- แถบเครื่องมือหัวเว็บ: ขนาดตัวอักษร + โหมดมืด/สว่าง ---------- */
+.topbar-tools {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
 .fontsize-bar {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
 }
 
 .fontsize-label {
@@ -54,7 +170,8 @@ body {
   gap: 4px;
 }
 
-.fontsize-btn {
+.fontsize-btn,
+.theme-btn {
   min-height: 36px;
   padding: 6px 12px;
   font-size: 0.8125rem;
@@ -62,63 +179,52 @@ body {
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 7px;
   cursor: pointer;
   white-space: nowrap;
 }
 
-.fontsize-btn:hover {
-  background: var(--surface-hover);
-}
+.fontsize-btn:hover,
+.theme-btn:hover { background: var(--surface-hover); }
 
 .fontsize-btn.active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #0B1220;
+  color: var(--accent-on);
   font-weight: 600;
 }
 
-.fontsize-btn:focus-visible {
+.fontsize-btn:focus-visible,
+.theme-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 @media (max-width: 640px) {
   .fontsize-label { display: none; }
-  .topbar-inner { gap: 8px; }
-}
-
-.topbar h1 {
-  font-size: 1.0625rem;
-  margin: 0 0 4px;
-  color: var(--text);
-}
-
-.last-updated {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  margin: 0;
+  .topbar-inner { gap: 10px; }
+  .topbar-tools { gap: 8px; }
 }
 
 .container {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 18px 16px;
 }
 
 .footer {
   text-align: center;
   color: var(--text-secondary);
   font-size: 0.75rem;
-  padding: 20px;
+  padding: 24px 20px;
 }
 
-/* ---------- การ์ดสถิติ (3 คอลัมน์) ---------- */
+/* ---------- การ์ดสถิติ ---------- */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 18px;
 }
 
 /* การ์ดสถิติในแท็บกราฟสรุป มี 4 ช่อง จัดเป็น 2x2 แทน 3+1 */
@@ -127,31 +233,33 @@ body {
 }
 
 .stat-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 14px;
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 14px 16px;
 }
 
 .stat-card .label {
   font-size: 0.75rem;
   color: var(--text-secondary);
-  margin: 0 0 4px;
+  margin: 0 0 5px;
 }
 
 .stat-card .value {
-  font-size: 1.375rem;
+  font-size: 1.5rem;
   font-weight: 600;
+  line-height: 1.1;
   margin: 0;
   color: var(--text);
 }
 
 .stat-card .value.accent { color: var(--accent); }
+.stat-card .value.negative { color: var(--neg); }
+
 /* ตัวเลขรองในการ์ดสถิติ เช่น "% ของทั้งหมด" */
 .stat-card .value-sub {
   font-size: 0.8125rem;
   font-weight: 400;
-  opacity: 0.8;
+  color: var(--text-secondary);
   margin-left: 6px;
 }
 
@@ -160,22 +268,24 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
 }
 
 #searchInput {
   width: 100%;
-  padding: 10px 12px;
+  padding: 11px 13px;
   border-radius: 8px;
   border: 1px solid var(--border);
+  font-family: inherit;
   font-size: 0.875rem;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   background: var(--bg);
   color: var(--text);
 }
 
 #searchInput::placeholder { color: var(--text-secondary); }
+#searchInput:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .filter-row {
   display: flex;
@@ -188,9 +298,10 @@ body {
 .filter-row:last-child { margin-bottom: 0; }
 
 select, .date-label input {
-  padding: 8px 10px;
+  padding: 8px 11px;
   border-radius: 8px;
   border: 1px solid var(--border);
+  font-family: inherit;
   font-size: 0.8125rem;
   background: var(--bg);
   color: var(--text);
@@ -209,15 +320,28 @@ select, .date-label input {
   color: var(--text);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
 
+.checkbox-label input,
+.multiselect-panel input { accent-color: var(--accent); }
+
+/* ตัวกรอง "เฉพาะข่าวลบ" — ตัวกรองหลักของทีมโฆษก ให้เด่นกว่า checkbox อื่น */
+.checkbox-label.neg-filter {
+  border: 1px solid var(--neg-bar);
+  border-radius: 999px;
+  padding: 5px 13px;
+  color: var(--neg);
+}
+.checkbox-label.neg-filter input { accent-color: var(--neg-bar); }
+
 .clear-btn {
-  padding: 8px 14px;
+  padding: 9px 14px;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text);
+  font-family: inherit;
   font-size: 0.8125rem;
   cursor: pointer;
 }
@@ -226,45 +350,49 @@ select, .date-label input {
 
 .export-btn {
   margin-left: auto;
-  padding: 8px 14px;
+  padding: 9px 15px;
   border-radius: 8px;
   border: none;
   background: var(--accent);
-  color: #06111F;
+  color: var(--accent-on);
+  font-family: inherit;
   font-weight: 600;
   font-size: 0.8125rem;
   cursor: pointer;
 }
 
-.export-btn:active { opacity: 0.8; }
+.export-btn:active { opacity: 0.85; }
 
 .result-count {
   font-size: 0.75rem;
   color: var(--text-secondary);
-  margin: 0 0 10px;
+  margin: 0 0 12px;
 }
 
 /* ---------- แท็บสลับ ---------- */
 .tab-bar {
   display: flex;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .tab-btn {
   flex: 1;
-  padding: 10px 0;
+  padding: 11px 0;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
+  font-family: inherit;
   font-size: 0.875rem;
   cursor: pointer;
 }
 
+.tab-btn:hover { background: var(--surface-hover); }
+
 .tab-btn.active {
   background: var(--accent);
-  color: #06111F;
+  color: var(--accent-on);
   font-weight: 600;
   border-color: var(--accent);
 }
@@ -273,26 +401,25 @@ select, .date-label input {
 .chart-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 14px;
+  margin-bottom: 14px;
 }
 
 .chart-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
 }
 
-.chart-grid .chart-card {
-  margin-bottom: 0;
-}
+.chart-grid .chart-card { margin-bottom: 0; }
 
 .chart-title {
-  font-size: 0.8125rem;
-  color: var(--text-secondary);
-  margin: 0 0 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 14px;
 }
 
 .chart-canvas-wrap {
@@ -300,28 +427,24 @@ select, .date-label input {
   height: 260px;
 }
 
-.chart-canvas-wrap.tall {
-  height: 300px;
-}
+.chart-canvas-wrap.tall { height: 300px; }
+
 /* กราฟแท่งแนวนอน 10 แถว — หมวดข่าว และ สำนักข่าว Top 10 (2 ส.ค. 69)
    ⚠️ ต้องใช้ความสูงเท่ากันทั้งคู่ เพราะวางคู่กันในแถวเดียว แถวแท่งจะได้ตรงระดับกัน
    ⚠️ ถ้าเตี้ยกว่า 340px Chart.js จะซ่อนป้ายแกน Y ทิ้งครึ่งหนึ่งเอง (autoSkip)
       เคยพลาด: ตั้ง 260px แล้วกราฟสำนักข่าวโชว์ชื่อแค่ 5 จาก 10 */
-.chart-canvas-wrap.rows10 {
-  height: 340px;
-}
+.chart-canvas-wrap.rows10 { height: 340px; }
 
 /* ---------- ตัวกรองแบบเลื่อนลงติ๊กหลายชนิด (multiselect) ---------- */
-.multiselect {
-  position: relative;
-}
+.multiselect { position: relative; }
 
 .multiselect-toggle {
-  padding: 8px 12px;
+  padding: 9px 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
+  font-family: inherit;
   font-size: 0.8125rem;
   cursor: pointer;
   min-width: 140px;
@@ -335,14 +458,14 @@ select, .date-label input {
   top: calc(100% + 4px);
   left: 0;
   z-index: 20;
-  background: var(--surface-hover);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   padding: 8px;
   min-width: 220px;
   max-height: 260px;
   overflow-y: auto;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  box-shadow: var(--shadow-panel);
 }
 
 .multiselect-panel label {
@@ -351,18 +474,18 @@ select, .date-label input {
   gap: 8px;
   font-size: 0.8125rem;
   color: var(--text);
-  padding: 6px 4px;
+  padding: 6px 5px;
   cursor: pointer;
   border-radius: 6px;
 }
 
-.multiselect-panel label:hover { background: var(--surface); }
+.multiselect-panel label:hover { background: var(--surface-hover); }
 
 .multiselect-panel .ms-clear {
   font-size: 0.75rem;
   color: var(--accent);
   cursor: pointer;
-  padding: 6px 4px;
+  padding: 6px 5px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
 }
@@ -371,13 +494,13 @@ select, .date-label input {
 .results-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px;
+  gap: 12px;
 }
 
 .loading, .empty {
   text-align: center;
   color: var(--text-secondary);
-  padding: 40px 0;
+  padding: 44px 0;
   font-size: 0.875rem;
   grid-column: 1 / -1;
 }
@@ -386,94 +509,82 @@ select, .date-label input {
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 1px solid var(--border);
   border-radius: 12px;
-  padding: 14px;
+  padding: 16px;
 }
 
-/* ป้าย "ประเด็นร้อน" 3 ระดับ (อิงจำนวนลิงก์ที่นำเสนอในประเด็น) */
-.news-card.attention-1 { border-left: 4px solid #E0A93B; }
-.news-card.attention-2 { border-left: 4px solid #E07B2E; }
-.news-card.attention-3 { border-left: 4px solid #E05C5C; }
-
-/* ⭐ การ์ดข่าวลบ — กรอบแดงทั้งใบ มองจากระยะไกลรู้ทันทีว่าใบไหนต้องดู
-   ⚠️ ใช้ outline ไม่ใช่ border เพราะ border-left ถูกใช้เป็นแถบ "ประเด็นร้อน" อยู่แล้ว
-      ถ้าใช้ border จะทับกันจนแถบร้อนหาย — outline วาดทับโดยไม่แย่งกัน และตามโค้งมุมการ์ด */
+/* ⭐ การ์ดข่าวลบ — กรอบแดง + พื้นแดงจาง มองจากระยะไกลรู้ทันทีว่าใบไหนต้องดู
+   ⚠️ ใช้ border ธรรมดาได้แล้ว (เดิมต้องใช้ outline เพราะ border-left ถูกแถบ
+      "ประเด็นร้อน" 3 ระดับยึดไว้ — แถบนั้นถอดทิ้งไปแล้ว 2 ส.ค. 69 เย็น
+      เพราะระดับ 3 ใช้สีแดงเดียวกับข่าวลบ ทำให้แยกความหมายไม่ออก) */
 .news-card.is-negative {
-  outline: 2px solid #E05C5C;
-  outline-offset: -2px;
+  border-color: var(--neg-bar);
+  background: var(--neg-bg);
 }
 
+/* ป้าย "ประเด็นร้อน" — จำนวนไฟบอกระดับ (1/2/3 ดวง) แต่ไม่มีสีเตือน
+   ⚠️ จงใจใช้สีกลาง ไม่ใช่แดง/ส้ม เพื่อไม่ให้แย่งความหมายจากกรอบแดงข่าวลบ */
 .hot-badge {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  font-size: 0.8125rem;
+  top: 10px;
+  right: 10px;
+  font-size: 0.75rem;
   line-height: 1;
-  padding: 4px 8px;
+  padding: 4px 9px;
   border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-secondary);
   letter-spacing: -1px;
   white-space: nowrap;
   cursor: default;
   z-index: 1;
 }
-.hot-badge.attention-1 { background: rgba(224,169,59,0.16); border: 1px solid #E0A93B; }
-.hot-badge.attention-2 { background: rgba(224,123,46,0.16); border: 1px solid #E07B2E; }
-.hot-badge.attention-3 { background: rgba(224,92,92,0.18);  border: 1px solid #E05C5C; }
 
+/* ป้ายหมวด — ชิปเส้นขอบสีเดียวทุกหมวด ไม่มีสีประจำหมวด */
 .news-card .badge {
   display: inline-block;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 999px;
-  margin-bottom: 6px;
-  margin-right: 4px;
-}
-
-.badge.category { background: #1B2A46; color: #8FBFFF; }
-.badge.cat-cambodia { background: #12331A; color: #8FD69B; }
-.badge.cat-border-other { background: #3A3410; color: #E8D66B; }
-.badge.cat-jcht { background: #3A1430; color: #F79ACB; }
-/* ⚠️ ลบคลาสตายออก 2 ส.ค. 69: .cat-negative .impact-สูง .impact-กลาง .impact-ต่ำ .cambodia
-   ประกาศไว้แต่ไม่มีจุดไหนใน app.js เรียกใช้ */
-
-/* ⭐ แท็กข่าวลบ ล่างการ์ด */
-.neg-tag-row {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid #22304A;
-}
-.news-card .badge.neg-tag {
-  background: #E05C5C;
-  color: #0B1220;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 500;
   padding: 3px 10px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  margin-right: 5px;
+  border: 1px solid var(--border-strong);
+  color: var(--text-2);
+  background: transparent;
+}
+
+/* ⭐ แท็กข่าวลบ ล่างการ์ด — คู่กับกรอบการ์ดสีแดง */
+.neg-tag-row {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.news-card .badge.neg-tag {
+  background: var(--neg-fill);
+  border-color: var(--neg-fill);
+  color: var(--neg-on);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 11px;
   margin-bottom: 0;
 }
 
-/* checkbox "เฉพาะข่าวลบ" — ให้เด่นกว่า checkbox อื่นเพราะเป็นตัวกรองหลัก */
-.checkbox-label.neg-filter {
-  border: 1px solid #E05C5C;
-  border-radius: 999px;
-  padding: 4px 12px;
-  color: #FF9E9E;
-}
-
 .news-card .title {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 600;
-  margin: 6px 0;
-  line-height: 1.4;
+  margin: 6px 0 8px;
+  line-height: 1.5;
   color: var(--text);
 }
 
 .news-card .summary {
-  font-size: 0.8125rem;
-  color: #C3C8D4;
-  margin: 0 0 4px;
-  line-height: 1.5;
+  font-size: 0.875rem;
+  color: var(--text-2);
+  margin: 0 0 5px;
+  line-height: 1.65;
   display: -webkit-box;
   -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
@@ -488,28 +599,26 @@ select, .date-label input {
 .news-card .read-more {
   background: none;
   border: none;
-  color: #6BA6FF;
+  color: var(--accent);
   font-size: 0.75rem;
   font-family: inherit;
   padding: 0;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   cursor: pointer;
 }
 
-.news-card .read-more:hover {
-  text-decoration: underline;
-}
+.news-card .read-more:hover { text-decoration: underline; }
 
 .news-card .meta {
   font-size: 0.75rem;
-  color: #E8D66B;
-  margin: 0 0 8px;
+  color: var(--text-secondary);
+  margin: 0 0 10px;
 }
 
 .news-card .sources {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .news-card .sources a {
@@ -519,7 +628,13 @@ select, .date-label input {
   word-break: break-all;
 }
 
+.news-card .sources a:hover { text-decoration: underline; }
 .news-card .sources a:active { opacity: 0.6; }
+
+.news-card .sources .more-sources {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
 
 /* ---------- Responsive: แท็บเล็ต ---------- */
 @media (min-width: 640px) {

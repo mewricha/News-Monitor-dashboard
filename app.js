@@ -81,7 +81,6 @@ function displaySourceName(source, url) {
   return SOURCE_NAMES[s.toLowerCase()] || s;
 }
 
-// สีประจำหมวด (ใช้กับโดนัทชาร์ต) — ให้สอดคล้องกับสี badge หมวดข่าวที่ใช้อยู่แล้วในรายการข่าว
 // ============================================================
 // หมวดประเด็น — ต้องตรงกับ CATEGORY_ORDER ในโค้ด Apps Script
 // ⚠️ มี 2 สำเนา (ไฟล์นี้ + Apps Script) เวลาเพิ่ม/เปลี่ยนชื่อหมวดต้องแก้ทั้งคู่
@@ -113,22 +112,18 @@ function normalizeCategory(cat) {
   return CATEGORY_ALIASES[c] || c;
 }
 
-var CATEGORY_COLORS = {
-  'ชายแดนไทย-กัมพูชา': '#4CAF6D',
-  'ความมั่นคงชายแดนอื่น': '#D4B94E',
-  'พิธีการ/กิจกรรม': '#C9A227',
-  'สถานการณ์ จชต.': '#E27FB0',
-  'กำลังพล/ทหารใหม่': '#6BA6FF',
-  'ปราบปรามยาเสพติด': '#A784E8',
-  'ช่วยเหลือประชาชน/จิตอาสา': '#4FC3C3',
-  'การฝึก/ความพร้อมรบ': '#E8A15C',
-  'ความสัมพันธ์ทหารระหว่างประเทศ': '#9AA5B1',
-  'อื่นๆ': '#C9B48A'
-};
-var DEFAULT_CHART_COLOR = '#8FBFFF';
+// ⚠️ ลบทิ้ง 2 ส.ค. 69 (ยกเครื่องหน้าตา): CATEGORY_COLORS 10 สี + DEFAULT_CHART_COLOR
+//    + categoryColor() — ตรวจด้วย grep แล้วไม่มีจุดไหนเรียกเลย เป็นโค้ดตายค้างมาจาก
+//    ยุคที่ยังใช้กราฟโดนัท ตอนนี้ป้ายหมวดใช้ชิปเส้นขอบสีเดียวทุกหมวด
 
-function categoryColor(cat) {
-  return CATEGORY_COLORS[normalizeCategory(cat)] || DEFAULT_CHART_COLOR;
+// ============================================================
+// อ่านค่าสีจากโทเคน CSS (style.css) — แหล่งความจริงเดียวของสีทั้งระบบ
+// ⚠️ ห้ามเขียน hex ลงในไฟล์นี้ ให้ประกาศโทเคนใน :root ของ style.css แล้วอ่านผ่านฟังก์ชันนี้
+// ⚠️ ต้องอ่านตอน "สร้างกราฟ" ทุกครั้ง ไม่ใช่เก็บเป็นตัวแปรระดับไฟล์
+//    เพราะค่าจะเปลี่ยนเมื่อผู้ใช้สลับโหมดมืด/สว่าง
+// ============================================================
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
 // ระดับผลกระทบ — ใช้เลือก "ระดับสูงสุดในกลุ่ม" ให้ตรงกับที่ฝั่ง Apps Script ทำ
@@ -344,7 +339,7 @@ function renderStats(filtered, topics) {
   document.getElementById('statGrid').innerHTML =
     '<div class="stat-card"><p class="label">ประเด็นทั้งหมด</p><p class="value">' + topics.length + '</p></div>' +
     '<div class="stat-card"><p class="label">นำเสนอข่าว (ครั้ง)</p><p class="value accent">' + filtered.length + '</p></div>' +
-    '<div class="stat-card"><p class="label">ประเด็นข่าวลบ</p><p class="value" style="color:#E05C5C">' + negTopics +
+    '<div class="stat-card"><p class="label">ประเด็นข่าวลบ</p><p class="value negative">' + negTopics +
       '<span class="value-sub">' + negPct + '%</span></p></div>' +
     '<div class="stat-card"><p class="label">สำนักข่าว</p><p class="value">' + sourceSet.size + '</p></div>';
 
@@ -360,30 +355,28 @@ function renderResults(topics) {
   }
 
   grid.innerHTML = topics.map(function (t) {
-    // ⚠️ แก้ 2 ส.ค. 69 (เย็น): เดิมถ้าเป็นข่าวลบ จะยึดสีป้ายหมวดไปเป็นสีแดง
-    //    ผลคือข่าวลบเรื่อง จชต. กับข่าวลบเรื่องกัมพูชา หน้าตาเหมือนกันเป๊ะ — เสียข้อมูลหมวดไป
-    //    ตอนนี้แยกกัน: ป้ายหมวดคงสีหมวดเสมอ · ความ "ลบ" บอกด้วยกรอบการ์ดแดง + แท็กล่างการ์ด
-    var categoryBadgeClass = 'category';
-    if (t.category === 'ชายแดนไทย-กัมพูชา') categoryBadgeClass = 'cat-cambodia';
-    else if (t.category === 'ความมั่นคงชายแดนอื่น') categoryBadgeClass = 'cat-border-other';
-    else if (t.category === 'สถานการณ์ จชต.') categoryBadgeClass = 'cat-jcht';
-
-    var badges = '<span class="badge ' + categoryBadgeClass + '">' + escapeHtml(t.category) + '</span>';
+    // ป้ายหมวด — ชิปเส้นขอบสีเดียวทุกหมวด ไม่มีสีประจำหมวดแล้ว (2 ส.ค. 69 ยกเครื่องหน้าตา)
+    //    เหตุผล: พาเลตต์ sage เกือบเป็นสีเดียว ทำ 10 สีให้แยกออกด้วยตาไม่ได้จริง
+    //    และการเติมสีหมวดเข้าไปทำให้กติกา "แดง = ข่าวลบ" อ่านไม่ขาด ซึ่งสำคัญกว่า
+    var badges = '<span class="badge">' + escapeHtml(t.category) + '</span>';
 
     // ป้าย "ประเด็นร้อน" 3 ระดับ อิงจำนวนลิงก์ที่นำเสนอในประเด็น (t.count นับทุกลิงก์ ซ้ำสำนักได้)
-    var attentionClass = '', hotBadge = '';
-    if (t.count >= 10) { attentionClass = ' attention-3'; hotBadge = '🔥🔥🔥'; }
-    else if (t.count >= 5) { attentionClass = ' attention-2'; hotBadge = '🔥🔥'; }
-    else if (t.count >= 3) { attentionClass = ' attention-1'; hotBadge = '🔥'; }
+    // ⚠️ ถอด class attention-1/2/3 ออก 2 ส.ค. 69 — แถบสีซ้ายการ์ดระดับ 3 ใช้ #E05C5C
+    //    ซึ่งเป็นสีเดียวกับข่าวลบเป๊ะ ทำให้แยกไม่ออกว่าการ์ดแดงแปลว่า "ร้อน" หรือ "ลบ"
+    //    ตอนนี้ป้ายไฟใช้สีกลาง จำนวนไฟยังบอกระดับได้เหมือนเดิม
+    var hotBadge = '';
+    if (t.count >= 10) hotBadge = '🔥🔥🔥';
+    else if (t.count >= 5) hotBadge = '🔥🔥';
+    else if (t.count >= 3) hotBadge = '🔥';
     var hotBadgeHtml = hotBadge
-      ? '<span class="hot-badge' + attentionClass + '" title="นำเสนอ ' + t.count + ' ครั้ง">' + hotBadge + '</span>'
+      ? '<span class="hot-badge" title="นำเสนอ ' + t.count + ' ครั้ง">' + hotBadge + '</span>'
       : '';
 
     var sourcesHtml = t.sources.slice(0, 5).map(function (s) {
       return '<a href="' + s.url + '" target="_blank" rel="noopener">🔗 ' + escapeHtml(s.source) + '</a>';
     }).join('');
     if (t.sources.length > 5) {
-      sourcesHtml += '<span style="font-size:12px;color:var(--text-secondary)">และอีก ' + (t.sources.length - 5) + ' แหล่ง</span>';
+      sourcesHtml += '<span class="more-sources">และอีก ' + (t.sources.length - 5) + ' แหล่ง</span>';
     }
 
     var srcCount = uniqueSourceCount(t);
@@ -405,7 +398,7 @@ function renderResults(topics) {
       negTagHtml = '<div class="neg-tag-row"><span class="badge neg-tag">ข่าวลบ' + impactText + partial + '</span></div>';
     }
 
-    return '<div class="news-card' + attentionClass + (t.isNegative ? ' is-negative' : '') + '">' +
+    return '<div class="news-card' + (t.isNegative ? ' is-negative' : '') + '">' +
       hotBadgeHtml + badges +
       '<p class="title">' + escapeHtml(t.title) + '</p>' +
       summaryHtml +
@@ -575,10 +568,89 @@ function initFontScale() {
 initFontScale();
 
 // ============================================================
+// สลับโหมดมืด/สว่าง
+//  - ค่าตั้งต้นและการกันจอกระพริบ ทำโดยสคริปต์ inline ใน <head> ของ index.html
+//    ไฟล์นี้รับหน้าที่เฉพาะ "ปุ่มกด" กับ "จำค่า" เท่านั้น
+//  - ⚠️ ต้องวาดกราฟใหม่ทุกครั้งที่สลับ เพราะ Chart.js อ่านสีตอนสร้างครั้งเดียว
+//    ถ้าไม่วาดใหม่ กราฟจะค้างสีของโหมดเดิมทั้งที่หน้าเว็บเปลี่ยนไปแล้ว
+// ============================================================
+var THEME_KEY = 'dashboardTheme';
+
+function currentTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+
+function applyTheme(theme, save) {
+  var t = (theme === 'dark') ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', t);
+
+  var btn = document.getElementById('themeBtn');
+  if (btn) {
+    btn.textContent = (t === 'dark') ? '☀️ โหมดสว่าง' : '🌙 โหมดมืด';
+    btn.setAttribute('title', (t === 'dark') ? 'เปลี่ยนเป็นโหมดสว่าง' : 'เปลี่ยนเป็นโหมดมืด');
+  }
+
+  if (save) {
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) { /* เบราว์เซอร์ปิด storage ก็ยังใช้งานได้ปกติ */ }
+  }
+
+  if (chartsRendered) renderCharts();
+}
+
+function initTheme() {
+  applyTheme(currentTheme(), false);
+  var btn = document.getElementById('themeBtn');
+  if (btn) {
+    btn.addEventListener('click', function () {
+      applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true);
+    });
+  }
+}
+
+initTheme();
+
+// ============================================================
 // กราฟสรุป — คำนวณจากข้อมูลทั้งหมด (ไม่ผูกกับตัวกรองของแท็บรายการข่าว)
 // ============================================================
+/**
+ * ชุดสีของกราฟ — อ่านสดจากโทเคน CSS ทุกครั้งที่วาด
+ * ⚠️ ห้ามเก็บผลลัพธ์ไว้ในตัวแปรระดับไฟล์ ต้องเรียกใหม่ทุกครั้งที่วาดกราฟ
+ *    ไม่งั้นพอสลับโหมดมืด/สว่าง กราฟจะยังใช้สีของโหมดเดิม
+ * ความหมายของแต่ละสี (ดูกติกาใน style.css)
+ *    neg  = ข่าวลบ (แดง — ใช้กับข่าวลบเท่านั้น)
+ *    main = ข่าวไม่ลบ / ไทย-กัมพูชา (เขียวเข้ม)
+ *    soft = ข่าวทั่วไป-อื่นๆ (เขียวอ่อน)
+ */
+function chartColors() {
+  return {
+    neg: cssVar('--chart-neg'),
+    main: cssVar('--chart-main'),
+    soft: cssVar('--chart-soft'),
+    text: cssVar('--text'),
+    muted: cssVar('--text-secondary'),
+    grid: cssVar('--grid'),
+    card: cssVar('--surface')
+  };
+}
+
+/**
+ * เส้นคั่นระหว่างท่อนของแท่งซ้อน — ใช้สีเดียวกับพื้นการ์ด จึงเห็นเป็น "ร่องว่าง"
+ *
+ * ⚠️ จำเป็น ไม่ใช่ของตกแต่ง — พิสูจน์ด้วยเลขแล้วว่าเลี่ยงไม่ได้
+ *    เกณฑ์ WCAG อยากให้สีที่อยู่ติดกันต่างกัน 3:1 แต่ท่อนทั้ง 3 ก็ต้องต่างจาก
+ *    พื้นการ์ด 3:1 ด้วย ซึ่งบีบให้ความสว่างต้องอยู่ในช่วง <= 0.175 (บนพื้นขาว)
+ *    พอบีบแบบนั้น สีที่สามจะต้องมีความสว่างติดลบ = ไม่มีสีไหนในโลกทำได้
+ *    ทางออกมาตรฐานคือใส่เส้นคั่น ให้ "ขอบ" เป็นตัวแยกแทน "สี"
+ *
+ * ⚠️ ต้องมี borderSkipped: false ไม่งั้น Chart.js จะไม่วาดขอบด้านที่ติดกับท่อนอื่น
+ *    ซึ่งเป็นด้านเดียวที่เราต้องการพอดี
+ */
+function barSeparator(c) {
+  return { borderColor: c.card, borderWidth: 1.5, borderSkipped: false };
+}
+
 function renderCharts() {
-  // ทำลายกราฟเดิมก่อนวาดใหม่ (เช่น ตอนเปลี่ยนขนาดตัวอักษร) กันกราฟซ้อนทับกัน
+  // ทำลายกราฟเดิมก่อนวาดใหม่ (เช่น ตอนเปลี่ยนขนาดตัวอักษร หรือสลับโหมดสี) กันกราฟซ้อนทับกัน
   ['categoryBar', 'sourceBar', 'trendBar'].forEach(function (id) {
     var existing = Chart.getChart(id);
     if (existing) existing.destroy();
@@ -608,8 +680,8 @@ function renderChartStats(allTopics) {
   document.getElementById('chartStatGrid').innerHTML =
     '<div class="stat-card"><p class="label">ข่าวทั้งหมด</p><p class="value">' + state.allNews.length + '</p></div>' +
     '<div class="stat-card"><p class="label">ประเด็นทั้งหมด</p><p class="value accent">' + allTopics.length + '</p></div>' +
-    '<div class="stat-card"><p class="label">ประเด็นข่าวลบ</p><p class="value" style="color:#E05C5C">' + negCount + '</p></div>' +
-    '<div class="stat-card"><p class="label">ประเด็นไทย-กัมพูชา</p><p class="value" style="color:#4CAF6D">' + camCount + '</p></div>';
+    '<div class="stat-card"><p class="label">ประเด็นข่าวลบ</p><p class="value negative">' + negCount + '</p></div>' +
+    '<div class="stat-card"><p class="label">ประเด็นไทย-กัมพูชา</p><p class="value accent">' + camCount + '</p></div>';
 }
 /**
  * กราฟหมวดข่าว — แท่งแนวนอนซ้อน "ข่าวลบ + ข่าวไม่ลบ"
@@ -642,15 +714,17 @@ function renderCategoryBar(newsList) {
     return { key: k, neg: a.neg, pos: a.pos, total: a.neg + a.pos };
   }).sort(function (a, b) { return b.total - a.total; });
 
+  var c = chartColors();
+
   new Chart(document.getElementById('categoryBar'), {
     type: 'bar',
     data: {
       labels: rows.map(function (r) { return r.key; }),
       datasets: [
-        { label: 'ข่าวลบ', data: rows.map(function (r) { return r.neg; }),
-          backgroundColor: '#E05C5C', stack: 'c', borderRadius: 2 },
-        { label: 'ข่าวไม่ลบ', data: rows.map(function (r) { return r.pos; }),
-          backgroundColor: '#6BA6FF', stack: 'c', borderRadius: 2 }
+        Object.assign({ label: 'ข่าวลบ', data: rows.map(function (r) { return r.neg; }),
+          backgroundColor: c.neg, stack: 'c' }, barSeparator(c)),
+        Object.assign({ label: 'ข่าวไม่ลบ', data: rows.map(function (r) { return r.pos; }),
+          backgroundColor: c.main, stack: 'c' }, barSeparator(c))
       ]
     },
     options: {
@@ -660,9 +734,9 @@ function renderCategoryBar(newsList) {
         subtitle: {
           display: true,
           text: 'นับเป็นจำนวนข่าว · ความยาวแท่ง = ยอดรวมของหมวด',
-          color: '#9AA6C0', font: { size: cfs(11) }, padding: { bottom: 6 }
+          color: c.muted, font: { size: cfs(11) }, padding: { bottom: 6 }
         },
-        legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: cfs(11) }, boxWidth: 12, padding: 10 } },
+        legend: { position: 'bottom', labels: { color: c.text, font: { size: cfs(11) }, boxWidth: 12, padding: 10 } },
         tooltip: {
           callbacks: {
             // เติม "คิดเป็นกี่ % ของหมวด" ให้อ่านค่าได้โดยไม่ต้องคำนวณเอง
@@ -675,10 +749,10 @@ function renderCategoryBar(newsList) {
         }
       },
       scales: {
-        x: { stacked: true, ticks: { color: '#8891A5', precision: 0 }, grid: { color: '#22304A' } },
+        x: { stacked: true, ticks: { color: c.muted, precision: 0 }, grid: { color: c.grid } },
         // ⚠️ autoSkip: false บังคับให้แสดงชื่อครบทุกแถว
         //    ถ้าไม่ใส่ Chart.js จะซ่อนป้ายทิ้งเองเมื่อกล่องเตี้ย โดยไม่มีสัญญาณเตือน
-        y: { stacked: true, ticks: { color: '#E8EAF0', font: { size: cfs(11) }, autoSkip: false }, grid: { display: false } }
+        y: { stacked: true, ticks: { color: c.text, font: { size: cfs(11) }, autoSkip: false }, grid: { display: false } }
       }
     }
   });
@@ -701,14 +775,16 @@ function renderSourceBar(newsList) {
     .slice(0, 10);
   // ไม่ต้อง reverse — Chart.js วางรายการแรกของ labels ไว้บนสุดของแท่งแนวนอนอยู่แล้ว
 
+  var c = chartColors();
+
   new Chart(document.getElementById('sourceBar'), {
     type: 'bar',
     data: {
       labels: top.map(function (t) { return t.source; }),
       datasets: [
-        { label: 'ไทย-กัมพูชา', data: top.map(function (t) { return t.cam; }), backgroundColor: '#4CAF6D', stack: 's' },
-        { label: 'ข่าวลบ', data: top.map(function (t) { return t.neg; }), backgroundColor: '#E05C5C', stack: 's' },
-        { label: 'ข่าวทั่วไป', data: top.map(function (t) { return t.other; }), backgroundColor: '#6BA6FF', stack: 's' }
+        Object.assign({ label: 'ไทย-กัมพูชา', data: top.map(function (t) { return t.cam; }), backgroundColor: c.main, stack: 's' }, barSeparator(c)),
+        Object.assign({ label: 'ข่าวลบ', data: top.map(function (t) { return t.neg; }), backgroundColor: c.neg, stack: 's' }, barSeparator(c)),
+        Object.assign({ label: 'ข่าวทั่วไป', data: top.map(function (t) { return t.other; }), backgroundColor: c.soft, stack: 's' }, barSeparator(c))
       ]
     },
     options: {
@@ -718,16 +794,16 @@ function renderSourceBar(newsList) {
         subtitle: {
           display: true,
           text: 'นับเป็นจำนวนข่าว (14 วันล่าสุด)',
-          color: '#9AA6C0',
+          color: c.muted,
           font: { size: cfs(11) },
           padding: { bottom: 6 }
         },
-        legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: cfs(11) }, boxWidth: 12 } }
+        legend: { position: 'bottom', labels: { color: c.text, font: { size: cfs(11) }, boxWidth: 12 } }
       },
       scales: {
-        x: { stacked: true, ticks: { color: '#8891A5', precision: 0 }, grid: { color: '#22304A' } },
+        x: { stacked: true, ticks: { color: c.muted, precision: 0 }, grid: { color: c.grid } },
         // ⚠️ autoSkip: false — เดิมกล่องสูง 260px ทำให้ Chart.js ซ่อนชื่อสำนักข่าวทิ้ง 5 จาก 10
-        y: { stacked: true, ticks: { color: '#E8EAF0', font: { size: cfs(11) }, autoSkip: false }, grid: { display: false } }
+        y: { stacked: true, ticks: { color: c.text, font: { size: cfs(11) }, autoSkip: false }, grid: { display: false } }
       }
     }
   });
@@ -756,14 +832,16 @@ function renderTrendBar(newsList) {
     otherSeries.push(itemsToday.filter(function (n) { return !n.isNegative && n.category !== 'ชายแดนไทย-กัมพูชา'; }).length);
   });
 
+  var c = chartColors();
+
   new Chart(document.getElementById('trendBar'), {
     type: 'bar',
     data: {
       labels: labels,
       datasets: [
-        { label: 'ไทย-กัมพูชา', data: camSeries, backgroundColor: '#4CAF6D', stack: 's' },
-        { label: 'ข่าวลบ', data: negSeries, backgroundColor: '#E05C5C', stack: 's' },
-        { label: 'อื่นๆ', data: otherSeries, backgroundColor: '#6BA6FF', stack: 's' }
+        Object.assign({ label: 'ไทย-กัมพูชา', data: camSeries, backgroundColor: c.main, stack: 's' }, barSeparator(c)),
+        Object.assign({ label: 'ข่าวลบ', data: negSeries, backgroundColor: c.neg, stack: 's' }, barSeparator(c)),
+        Object.assign({ label: 'อื่นๆ', data: otherSeries, backgroundColor: c.soft, stack: 's' }, barSeparator(c))
       ]
     },
     options: {
@@ -772,15 +850,15 @@ function renderTrendBar(newsList) {
         subtitle: {
           display: true,
           text: 'นับเป็นจำนวนข่าว',
-          color: '#9AA6C0',
+          color: c.muted,
           font: { size: cfs(11) },
           padding: { bottom: 6 }
         },
-        legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: cfs(11) }, boxWidth: 12 } }
+        legend: { position: 'bottom', labels: { color: c.text, font: { size: cfs(11) }, boxWidth: 12 } }
       },
       scales: {
-        x: { stacked: true, ticks: { color: '#8891A5', font: { size: cfs(10) } }, grid: { display: false } },
-        y: { stacked: true, ticks: { color: '#8891A5', precision: 0 }, grid: { color: '#22304A' } }
+        x: { stacked: true, ticks: { color: c.muted, font: { size: cfs(10) } }, grid: { display: false } },
+        y: { stacked: true, ticks: { color: c.muted, precision: 0 }, grid: { color: c.grid } }
       }
     }
   });
