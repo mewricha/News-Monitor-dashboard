@@ -676,7 +676,9 @@ function renderCategoryBar(newsList) {
       },
       scales: {
         x: { stacked: true, ticks: { color: '#8891A5', precision: 0 }, grid: { color: '#22304A' } },
-        y: { stacked: true, ticks: { color: '#E8EAF0', font: { size: cfs(11) } }, grid: { display: false } }
+        // ⚠️ autoSkip: false บังคับให้แสดงชื่อครบทุกแถว
+        //    ถ้าไม่ใส่ Chart.js จะซ่อนป้ายทิ้งเองเมื่อกล่องเตี้ย โดยไม่มีสัญญาณเตือน
+        y: { stacked: true, ticks: { color: '#E8EAF0', font: { size: cfs(11) }, autoSkip: false }, grid: { display: false } }
       }
     }
   });
@@ -724,7 +726,8 @@ function renderSourceBar(newsList) {
       },
       scales: {
         x: { stacked: true, ticks: { color: '#8891A5', precision: 0 }, grid: { color: '#22304A' } },
-        y: { stacked: true, ticks: { color: '#E8EAF0', font: { size: cfs(11) } }, grid: { display: false } }
+        // ⚠️ autoSkip: false — เดิมกล่องสูง 260px ทำให้ Chart.js ซ่อนชื่อสำนักข่าวทิ้ง 5 จาก 10
+        y: { stacked: true, ticks: { color: '#E8EAF0', font: { size: cfs(11) }, autoSkip: false }, grid: { display: false } }
       }
     }
   });
