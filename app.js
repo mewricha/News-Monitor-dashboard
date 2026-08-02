@@ -579,7 +579,7 @@ initFontScale();
 // ============================================================
 function renderCharts() {
   // ทำลายกราฟเดิมก่อนวาดใหม่ (เช่น ตอนเปลี่ยนขนาดตัวอักษร) กันกราฟซ้อนทับกัน
-  ['categoryDonut', 'sourceBar', 'trendBar'].forEach(function (id) {
+  ['categoryBar', 'sourceBar', 'trendBar'].forEach(function (id) {
     var existing = Chart.getChart(id);
     if (existing) existing.destroy();
   });
@@ -588,7 +588,7 @@ function renderCharts() {
   var last14DaysNews = getLast14DaysNews();
 
   renderChartStats(allTopics);
-  renderCategoryDonut(allTopics);
+  renderCategoryBar(state.allNews);   // ⚠️ ส่ง "ข่าว" ไม่ใช่ "ประเด็น" — กราฟนี้นับรายข่าว
   renderSourceBar(last14DaysNews);
   renderTrendBar(state.allNews);
 }
@@ -611,31 +611,72 @@ function renderChartStats(allTopics) {
     '<div class="stat-card"><p class="label">ประเด็นข่าวลบ</p><p class="value" style="color:#E05C5C">' + negCount + '</p></div>' +
     '<div class="stat-card"><p class="label">ประเด็นไทย-กัมพูชา</p><p class="value" style="color:#4CAF6D">' + camCount + '</p></div>';
 }
-
-function renderCategoryDonut(allTopics) {
-  var counts = {};
-  allTopics.forEach(function (t) {
-    var cat = t.category || 'อื่นๆ';
-    counts[cat] = (counts[cat] || 0) + 1;
+/**
+ * กราฟหมวดข่าว — แท่งแนวนอนซ้อน "ข่าวลบ + ข่าวไม่ลบ"
+ *
+ * ⚠️ เปลี่ยนจากโดนัทเป็นแท่งแนวนอน 2 ส.ค. 69 (เย็น)
+ *    โดนัทบอกได้แค่ "หมวดไหนเยอะ" แต่บอกไม่ได้ว่า "หมวดไหนมีข่าวลบเยอะ"
+ *    ซึ่งเป็นคำถามหลักของทีมโฆษก
+ *
+ * ⚠️ ซ้อน "ลบ + ไม่ลบ" ไม่ใช่ "ยอดรวม + ลบ"
+ *    เพราะข่าวลบเป็นส่วนหนึ่งของยอดรวมอยู่แล้ว ถ้าซ้อนตรง ๆ จะนับซ้ำ
+ *    (จชต. จะยาวเท่ากับ 704 + 448 = 1,152 ทั้งที่มีจริง 704 และแกน X พองตาม)
+ *    ซ้อนแบบนี้ความยาวแท่ง = ยอดรวมจริง และท่อนแดง = ข่าวลบพอดี
+ *
+ * ⚠️ นับเป็น "ข่าว" ไม่ใช่ "ประเด็น" (โดนัทเดิมนับประเด็น) — ตัวเลขต่างกันมาก
+ *    เช่น จชต. 704 ข่าว แต่ 322 ประเด็น จึงเขียนกำกับไว้ใต้หัวกราฟ
+ *
+ * แสดงครบ 10 หมวดรวมหมวดที่เป็น 0 — "หมวดที่เงียบ" ก็เป็นข้อมูล
+ */
+function renderCategoryBar(newsList) {
+  var agg = {};
+  CATEGORY_ORDER.forEach(function (k) { agg[k] = { neg: 0, pos: 0 }; });
+  newsList.forEach(function (n) {
+    var c = normalizeCategory(n.category);
+    if (!agg[c]) agg[c] = { neg: 0, pos: 0 };   // หมวดแปลกที่หลุดเข้ามา — ให้เห็น ไม่ให้หาย
+    if (n.isNegative) agg[c].neg++; else agg[c].pos++;
   });
-  var labels = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; });
-  var data = labels.map(function (l) { return counts[l]; });
-  var colors = labels.map(categoryColor);
 
-  new Chart(document.getElementById('categoryDonut'), {
-    type: 'doughnut',
-    data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 1, borderColor: '#131B2E' }] },
+  var rows = Object.keys(agg).map(function (k) {
+    var a = agg[k];
+    return { key: k, neg: a.neg, pos: a.pos, total: a.neg + a.pos };
+  }).sort(function (a, b) { return b.total - a.total; });
+
+  new Chart(document.getElementById('categoryBar'), {
+    type: 'bar',
+    data: {
+      labels: rows.map(function (r) { return r.key; }),
+      datasets: [
+        { label: 'ข่าวลบ', data: rows.map(function (r) { return r.neg; }),
+          backgroundColor: '#E05C5C', stack: 'c', borderRadius: 2 },
+        { label: 'ข่าวไม่ลบ', data: rows.map(function (r) { return r.pos; }),
+          backgroundColor: '#6BA6FF', stack: 'c', borderRadius: 2 }
+      ]
+    },
     options: {
+      indexAxis: 'y',
       responsive: true, maintainAspectRatio: false,
       plugins: {
         subtitle: {
           display: true,
-          text: 'แบ่งตามหมวดหลัก (นับเป็นประเด็น)',
-          color: '#9AA6C0',
-          font: { size: cfs(11) },
-          padding: { bottom: 6 }
+          text: 'นับเป็นจำนวนข่าว · ความยาวแท่ง = ยอดรวมของหมวด',
+          color: '#9AA6C0', font: { size: cfs(11) }, padding: { bottom: 6 }
         },
-        legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: cfs(11) }, boxWidth: 12, padding: 10 } }
+        legend: { position: 'bottom', labels: { color: '#E8EAF0', font: { size: cfs(11) }, boxWidth: 12, padding: 10 } },
+        tooltip: {
+          callbacks: {
+            // เติม "คิดเป็นกี่ % ของหมวด" ให้อ่านค่าได้โดยไม่ต้องคำนวณเอง
+            afterBody: function (items) {
+              var r = rows[items[0].dataIndex];
+              if (!r.total) return '';
+              return 'รวม ' + r.total + ' ข่าว · ข่าวลบ ' + Math.round(100 * r.neg / r.total) + '%';
+            }
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true, ticks: { color: '#8891A5', precision: 0 }, grid: { color: '#22304A' } },
+        y: { stacked: true, ticks: { color: '#E8EAF0', font: { size: cfs(11) } }, grid: { display: false } }
       }
     }
   });
