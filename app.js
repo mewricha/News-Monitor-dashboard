@@ -82,6 +82,37 @@ function displaySourceName(source, url) {
 }
 
 // สีประจำหมวด (ใช้กับโดนัทชาร์ต) — ให้สอดคล้องกับสี badge หมวดข่าวที่ใช้อยู่แล้วในรายการข่าว
+// ============================================================
+// หมวดประเด็น — ต้องตรงกับ CATEGORY_ORDER ในโค้ด Apps Script
+// ⚠️ มี 2 สำเนา (ไฟล์นี้ + Apps Script) เวลาเพิ่ม/เปลี่ยนชื่อหมวดต้องแก้ทั้งคู่
+// ============================================================
+var CATEGORY_ORDER = [
+  'ปราบปรามยาเสพติด',
+  'ช่วยเหลือประชาชน/จิตอาสา',
+  'ชายแดนไทย-กัมพูชา',
+  'สถานการณ์ จชต.',
+  'ความมั่นคงชายแดนอื่น',
+  'พิธีการ/กิจกรรม',
+  'การฝึก/ความพร้อมรบ',
+  'กำลังพล/ทหารใหม่',
+  'ความสัมพันธ์ทหารระหว่างประเทศ',
+  'อื่นๆ'
+];
+
+// ⚠️ ชื่อหมวดเก่า → ชื่อปัจจุบัน (ตรงกับ CATEGORY_ALIASES ในโค้ด Apps Script)
+//    ถ้าไม่มีตารางนี้ แถวที่ยังใช้ชื่อเดิมจะโผล่เป็น "หมวดที่ 11" ในตัวกรอง
+//    ได้สีเทา default ในกราฟ และถูกนับแยกจากหมวดจริง
+//    (ตรวจ 2 ส.ค. 69: ยังมี 'พิธีการ/ประเพณีทหาร' ค้างอยู่ 45 แถว)
+var CATEGORY_ALIASES = {
+  'พิธีการ/ประเพณีทหาร': 'พิธีการ/กิจกรรม'
+};
+
+function normalizeCategory(cat) {
+  var c = (cat || '').toString().trim();
+  if (!c) return 'อื่นๆ';
+  return CATEGORY_ALIASES[c] || c;
+}
+
 var CATEGORY_COLORS = {
   'ชายแดนไทย-กัมพูชา': '#4CAF6D',
   'ความมั่นคงชายแดนอื่น': '#D4B94E',
@@ -97,8 +128,11 @@ var CATEGORY_COLORS = {
 var DEFAULT_CHART_COLOR = '#8FBFFF';
 
 function categoryColor(cat) {
-  return CATEGORY_COLORS[cat] || DEFAULT_CHART_COLOR;
+  return CATEGORY_COLORS[normalizeCategory(cat)] || DEFAULT_CHART_COLOR;
 }
+
+// ระดับผลกระทบ — ใช้เลือก "ระดับสูงสุดในกลุ่ม" ให้ตรงกับที่ฝั่ง Apps Script ทำ
+var IMPACT_RANK = { 'สูง': 3, 'กลาง': 2, 'ต่ำ': 1 };
 
 function formatThaiDate(d) {
   return d.getDate() + ' ' + THAI_MONTHS_ABBR[d.getMonth()] + ' ' + (d.getFullYear() + 543);
@@ -110,9 +144,11 @@ async function loadData() {
     var data = await res.json();
     state.allNews = data.news || [];
 
-    // แปลงโดเมนเป็นชื่อสำนักข่าวตั้งแต่โหลด — การ์ด/ตัวกรอง/กราฟ ได้ชื่อเดียวกันทุกจุด
+    // ทำข้อมูลให้เป็นมาตรฐานตั้งแต่โหลด — การ์ด/ตัวกรอง/กราฟ/CSV ได้ค่าเดียวกันทุกจุด
+    // ⚠️ ต้องทำที่นี่จุดเดียว ห้ามไปแปลงซ้ำที่ปลายทาง ไม่งั้นจะหลุดบางจุดเหมือนที่เคยพลาด
     state.allNews.forEach(function (n) {
       n.source = displaySourceName(n.source, n.url);
+      n.category = normalizeCategory(n.category);
     });
 
     var updatedEl = document.getElementById('lastUpdated');
@@ -139,7 +175,20 @@ function setupMultiselect(kind, containerId, toggleId, panelId, allLabel) {
   var field = kind === 'category' ? 'category' : 'source';
   var selectedSet = kind === 'category' ? state.selectedCategories : state.selectedSources;
 
-  var values = Array.from(new Set(state.allNews.map(function (n) { return n[field] || '-'; }))).sort();
+  var values = Array.from(new Set(state.allNews.map(function (n) { return n[field] || '-'; })));
+  if (kind === 'category') {
+    // เรียงตามลำดับความสำคัญที่ระบบกำหนด ไม่ใช่ตามตัวอักษร
+    // หมวดแปลกที่ไม่อยู่ในรายการ (ถ้ามี) ไปต่อท้าย — จะได้เห็นว่ามีของหลุดเข้ามา
+    values.sort(function (a, b) {
+      var ia = CATEGORY_ORDER.indexOf(a), ib = CATEGORY_ORDER.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b, 'th');
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  } else {
+    values.sort();
+  }
 
   var panel = document.getElementById(panelId);
   var clearRow = document.createElement('div');
@@ -204,15 +253,21 @@ function groupIntoTopics(newsList) {
     if (!map[code]) {
       map[code] = {
         code: code, category: n.category, isNegative: false, impact: '-',
-        isThailandCambodia: false, title: n.title, summary: n.summary,
-        earliestDate: n.datetime, count: 0, sources: []
+        title: n.title, summary: n.summary,
+        earliestDate: n.datetime, count: 0, negCount: 0, sources: []
       };
     }
     var t = map[code];
     t.count++;
     t.sources.push({ source: n.source, url: n.url, datetime: n.datetime });
-    if (n.isNegative) { t.isNegative = true; t.impact = n.impact; }
-    if (n.isThailandCambodia) t.isThailandCambodia = true;
+    // ⚠️ แก้ 2 ส.ค. 69: เดิมเขียนทับ t.impact ทุกรอบ → ได้ค่าของข่าวชิ้นสุดท้าย ไม่ใช่ระดับสูงสุด
+    //    วัดแล้วมี 8 กลุ่มที่ระดับปนกัน (เช่น 'ประธานสภาฯ เสนอยุบ กอ.รมน.' มีทั้ง สูง และ กลาง)
+    //    ทำให้ตัวเลขบนเว็บกับในรายงาน LINE ไม่ตรงกัน เพราะฝั่งนั้นเอาค่าสูงสุด
+    if (n.isNegative) {
+      t.isNegative = true;
+      t.negCount++;
+      if ((IMPACT_RANK[n.impact] || 0) > (IMPACT_RANK[t.impact] || 0)) t.impact = n.impact;
+    }
     if (new Date(n.datetime) < new Date(t.earliestDate)) {
       t.earliestDate = n.datetime;
       t.title = n.title;
@@ -235,6 +290,7 @@ function applyFiltersAndRender() {
   var dateTo = document.getElementById('dateTo').value;
   var onlyToday = document.getElementById('onlyToday').checked;
   var onlyLast3Days = document.getElementById('onlyLast3Days').checked;
+  var onlyNegative = document.getElementById('onlyNegative').checked;
   var sortOrder = document.getElementById('sortOrder').value;
 
   var todayStart = new Date();
@@ -244,6 +300,10 @@ function applyFiltersAndRender() {
   var filtered = state.allNews.filter(function (n) {
     if (state.selectedCategories.size > 0 && !state.selectedCategories.has(n.category)) return false;
     if (state.selectedSources.size > 0 && !state.selectedSources.has(n.source)) return false;
+
+    // ⭐ ตัวกรองธงข่าวลบ — กรองที่ระดับ "ข่าว" ไม่ใช่ระดับ "ประเด็น"
+    //    ผลคือประเด็นที่มีทั้งข่าวลบและไม่ลบ จะเหลือเฉพาะข่าวลบในการ์ด ซึ่งตรงกับที่ผู้ใช้ถาม
+    if (onlyNegative && !n.isNegative) return false;
 
     if (dateFrom && n.datetime < dateFrom) return false;
     if (dateTo && n.datetime > (dateTo + 'T23:59:59')) return false;
@@ -276,13 +336,20 @@ function applyFiltersAndRender() {
 
 function renderStats(filtered, topics) {
   var sourceSet = new Set(filtered.map(function (n) { return n.source; }));
+  // ⭐ เพิ่ม 2 ส.ค. 69 — ข่าวลบเป็นตัวชี้วัดหลักของทีมโฆษกแล้ว แต่แท็บนี้ไม่เคยแสดง
+  //    (แท็บกราฟมีมาตั้งแต่แรก แท็บรายการเพิ่งมี)
+  var negTopics = topics.filter(function (t) { return t.isNegative; }).length;
+  var negPct = topics.length ? Math.round(100 * negTopics / topics.length) : 0;
 
   document.getElementById('statGrid').innerHTML =
     '<div class="stat-card"><p class="label">ประเด็นทั้งหมด</p><p class="value">' + topics.length + '</p></div>' +
     '<div class="stat-card"><p class="label">นำเสนอข่าว (ครั้ง)</p><p class="value accent">' + filtered.length + '</p></div>' +
+    '<div class="stat-card"><p class="label">ประเด็นข่าวลบ</p><p class="value" style="color:#E05C5C">' + negTopics +
+      '<span class="value-sub">' + negPct + '%</span></p></div>' +
     '<div class="stat-card"><p class="label">สำนักข่าว</p><p class="value">' + sourceSet.size + '</p></div>';
 
-  document.getElementById('resultCount').textContent = 'พบ ' + topics.length + ' ประเด็น (' + filtered.length + ' ข่าว)';
+  document.getElementById('resultCount').textContent =
+    'พบ ' + topics.length + ' ประเด็น (' + filtered.length + ' ข่าว) · ในนั้นเป็นข่าวลบ ' + negTopics + ' ประเด็น';
 }
 
 function renderResults(topics) {
@@ -293,10 +360,11 @@ function renderResults(topics) {
   }
 
   grid.innerHTML = topics.map(function (t) {
+    // ⚠️ แก้ 2 ส.ค. 69 (เย็น): เดิมถ้าเป็นข่าวลบ จะยึดสีป้ายหมวดไปเป็นสีแดง
+    //    ผลคือข่าวลบเรื่อง จชต. กับข่าวลบเรื่องกัมพูชา หน้าตาเหมือนกันเป๊ะ — เสียข้อมูลหมวดไป
+    //    ตอนนี้แยกกัน: ป้ายหมวดคงสีหมวดเสมอ · ความ "ลบ" บอกด้วยกรอบการ์ดแดง + แท็กล่างการ์ด
     var categoryBadgeClass = 'category';
-    // ⚠️ 2 ส.ค. 69: ข่าวลบเป็น "ธง" ไม่ใช่หมวด — ใช้ t.isNegative แทนการเทียบชื่อหมวด
-    if (t.isNegative) categoryBadgeClass = 'cat-negative';
-    else if (t.category === 'ชายแดนไทย-กัมพูชา') categoryBadgeClass = 'cat-cambodia';
+    if (t.category === 'ชายแดนไทย-กัมพูชา') categoryBadgeClass = 'cat-cambodia';
     else if (t.category === 'ความมั่นคงชายแดนอื่น') categoryBadgeClass = 'cat-border-other';
     else if (t.category === 'สถานการณ์ จชต.') categoryBadgeClass = 'cat-jcht';
 
@@ -328,11 +396,22 @@ function renderResults(topics) {
       summaryHtml += '<button type="button" class="read-more" onclick="toggleSummary(this)">อ่านเพิ่ม ▾</button>';
     }
 
-    return '<div class="news-card' + attentionClass + '">' + hotBadgeHtml + badges +
+    // ⭐ แท็กข่าวลบ — วางไว้ "ล่างการ์ด" ตามที่ออกแบบไว้ คู่กับกรอบการ์ดสีแดง
+    //    ไม่ใช้อิโมจิมุมการ์ด เพราะกรอบแดงเห็นชัดจากระยะไกลอยู่แล้ว
+    var negTagHtml = '';
+    if (t.isNegative) {
+      var impactText = (t.impact && t.impact !== '-') ? ' · ระดับ' + t.impact : '';
+      var partial = (t.negCount < t.count) ? ' (' + t.negCount + '/' + t.count + ' ข่าว)' : '';
+      negTagHtml = '<div class="neg-tag-row"><span class="badge neg-tag">ข่าวลบ' + impactText + partial + '</span></div>';
+    }
+
+    return '<div class="news-card' + attentionClass + (t.isNegative ? ' is-negative' : '') + '">' +
+      hotBadgeHtml + badges +
       '<p class="title">' + escapeHtml(t.title) + '</p>' +
       summaryHtml +
       '<p class="meta">' + metaText + '</p>' +
       '<div class="sources">' + sourcesHtml + '</div>' +
+      negTagHtml +
       '</div>';
   }).join('');
 }
@@ -361,14 +440,15 @@ function exportCsv() {
     return;
   }
 
-  var headers = ['วันที่เวลา', 'หัวข้อ', 'แหล่งที่มา', 'หมวด', 'ข่าวลบ', 'ระดับผลกระทบ', 'ไทย-กัมพูชา', 'ลิงก์'];
+  // ⚠️ ถอดคอลัมน์ "ไทย-กัมพูชา" ออก 2 ส.ค. 69 — ซ้ำ 100% กับคอลัมน์ "หมวด" โดยนิยาม
+  //    (ตั้งแต่เปลี่ยนให้คำนวณจากหมวดแทนคอลัมน์ K ที่เลิกใช้แล้ว)
+  var headers = ['วันที่เวลา', 'หัวข้อ', 'แหล่งที่มา', 'หมวด', 'ข่าวลบ', 'ระดับผลกระทบ', 'ลิงก์'];
   var lines = [headers.join(',')];
 
   rows.forEach(function (n) {
     var cells = [
       n.datetime, n.title, n.source, n.category,
-      n.isNegative ? 'ลบ' : 'ไม่ลบ', n.impact || '-',
-      n.isThailandCambodia ? 'ใช่' : 'ไม่ใช่', n.url
+      n.isNegative ? 'ลบ' : 'ไม่ลบ', n.impact || '-', n.url
     ].map(csvEscape);
     lines.push(cells.join(','));
   });
@@ -402,6 +482,7 @@ function clearAllFilters() {
   document.getElementById('dateTo').value = '';
   document.getElementById('onlyToday').checked = false;
   document.getElementById('onlyLast3Days').checked = false;
+  document.getElementById('onlyNegative').checked = false;
 
   state.selectedCategories.clear();
   state.selectedSources.clear();
@@ -416,7 +497,7 @@ function clearAllFilters() {
 // ============================================================
 // ผูก event listener
 // ============================================================
-['searchInput', 'dateFrom', 'dateTo', 'onlyToday', 'onlyLast3Days', 'sortOrder']
+['searchInput', 'dateFrom', 'dateTo', 'onlyToday', 'onlyLast3Days', 'onlyNegative', 'sortOrder']
   .forEach(function (id) {
     var el = document.getElementById(id);
     el.addEventListener('input', applyFiltersAndRender);

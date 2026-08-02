@@ -147,6 +147,13 @@ body {
 }
 
 .stat-card .value.accent { color: var(--accent); }
+/* ตัวเลขรองในการ์ดสถิติ เช่น "% ของทั้งหมด" */
+.stat-card .value-sub {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  opacity: 0.8;
+  margin-left: 6px;
+}
 
 /* ---------- แถบตัวกรอง ---------- */
 .filter-bar {
@@ -382,6 +389,14 @@ select, .date-label input {
 .news-card.attention-2 { border-left: 4px solid #E07B2E; }
 .news-card.attention-3 { border-left: 4px solid #E05C5C; }
 
+/* ⭐ การ์ดข่าวลบ — กรอบแดงทั้งใบ มองจากระยะไกลรู้ทันทีว่าใบไหนต้องดู
+   ⚠️ ใช้ outline ไม่ใช่ border เพราะ border-left ถูกใช้เป็นแถบ "ประเด็นร้อน" อยู่แล้ว
+      ถ้าใช้ border จะทับกันจนแถบร้อนหาย — outline วาดทับโดยไม่แย่งกัน และตามโค้งมุมการ์ด */
+.news-card.is-negative {
+  outline: 2px solid #E05C5C;
+  outline-offset: -2px;
+}
+
 .hot-badge {
   position: absolute;
   top: 8px;
@@ -410,13 +425,34 @@ select, .date-label input {
 }
 
 .badge.category { background: #1B2A46; color: #8FBFFF; }
-.badge.cat-negative { background: #3A1414; color: #FF9E9E; }
 .badge.cat-cambodia { background: #12331A; color: #8FD69B; }
 .badge.cat-border-other { background: #3A3410; color: #E8D66B; }
 .badge.cat-jcht { background: #3A1430; color: #F79ACB; }
-.badge.impact-สูง { background: #3A1414; color: #FF9E9E; }
-.badge.impact-กลาง, .badge.impact-ต่ำ { background: #3A2A0F; color: #FFC978; }
-.badge.cambodia { background: #12331A; color: #8FD69B; }
+/* ⚠️ ลบคลาสตายออก 2 ส.ค. 69: .cat-negative .impact-สูง .impact-กลาง .impact-ต่ำ .cambodia
+   ประกาศไว้แต่ไม่มีจุดไหนใน app.js เรียกใช้ */
+
+/* ⭐ แท็กข่าวลบ ล่างการ์ด */
+.neg-tag-row {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #22304A;
+}
+.news-card .badge.neg-tag {
+  background: #E05C5C;
+  color: #0B1220;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  margin-bottom: 0;
+}
+
+/* checkbox "เฉพาะข่าวลบ" — ให้เด่นกว่า checkbox อื่นเพราะเป็นตัวกรองหลัก */
+.checkbox-label.neg-filter {
+  border: 1px solid #E05C5C;
+  border-radius: 999px;
+  padding: 4px 12px;
+  color: #FF9E9E;
+}
 
 .news-card .title {
   font-size: 0.875rem;
