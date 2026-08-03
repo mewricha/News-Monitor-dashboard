@@ -629,7 +629,9 @@ function chartColors() {
     text: cssVar('--text'),
     muted: cssVar('--text-secondary'),
     grid: cssVar('--grid'),
-    card: cssVar('--surface')
+    card: cssVar('--surface'),
+    // เส้นขอบท่อนแท่งซ้อน — ดูเหตุผลที่ barSeparator()
+    segLine: cssVar('--seg-line')
   };
 }
 
@@ -646,7 +648,14 @@ function chartColors() {
  *    ซึ่งเป็นด้านเดียวที่เราต้องการพอดี
  */
 function barSeparator(c) {
-  return { borderColor: c.card, borderWidth: 1.5, borderSkipped: false };
+  // ⚠️ เปลี่ยนจากสีการ์ดเป็น --seg-line (3 ส.ค. 69 · ธีม RTA)
+  //    โหมดสว่าง  --seg-line = green-50 #88908B → เป็น "เส้นขอบ" จริง
+  //      จำเป็นเพราะแท่ง Sand #FCE375 ได้ contrast กับพื้นการ์ดขาวแค่ 1.28:1
+  //      ถ้าไม่มีขอบ แท่งไทย-กัมพูชาจะจมหายไปกับพื้นการ์ด
+  //    โหมดมืด    --seg-line = สีการ์ด #10402E → เห็นเป็น "ร่องว่าง" เหมือนเดิม
+  //      (โหมดมืดแท่งทุกสีผ่าน 3:1 กับพื้นการ์ดอยู่แล้ว ไม่ต้องมีขอบ)
+  //    ทำให้ใช้โค้ดเส้นทางเดียว แก้สีที่โทเคนอย่างเดียวจบ
+  return { borderColor: c.segLine, borderWidth: 1.5, borderSkipped: false };
 }
 
 function renderCharts() {

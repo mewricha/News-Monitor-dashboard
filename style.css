@@ -1,122 +1,199 @@
 /* ============================================================
-   ธีมแดชบอร์ดติดตามข่าวสารกองทัพบก — โทน Navy & Red (2 ส.ค. 69)
+   ธีมแดชบอร์ดติดตามข่าวสารกองทัพบก — RTA Brand Design System v2.0
+   ปรับ 3 ส.ค. 2569 (แทนโทน Navy & Red ของ 2 ส.ค.)
    ------------------------------------------------------------
-   ⚠️ กติกาสี ห้ามแหก มี 3 ข้อเท่านั้น
-      1. แดง = "ข่าวลบ" เท่านั้น ห้ามใช้กับอย่างอื่นเด็ดขาด
-         (ของเดิมแถบ "ประเด็นร้อน" ระดับ 3 ใช้ #E05C5C ซ้ำกับข่าวลบเป๊ะ
-          ทำให้แยกไม่ออกว่าการ์ดแดงแปลว่า "ร้อน" หรือ "ลบ" — ถอดทิ้งแล้ว)
-      2. accent เขียว = สิ่งที่กดได้ + ข่าวที่ไม่ลบ
-      3. หมวดข่าวไม่มีสีประจำ ใช้ชิปเส้นขอบสีเดียวกันหมด
-         (พาเลตต์นี้เกือบเป็นสีเดียว ทำ 10 สีให้แยกออกไม่ได้จริง
-          และ CATEGORY_COLORS ใน app.js เป็นโค้ดตายอยู่แล้ว ไม่มีใครเรียก)
+   🔑 แหล่งความจริงเดียว: RTA-Brand-Design-System.md ในโฟลเดอร์โปรเจกต์
+      ทุกค่าสีในไฟล์นี้มาจากเอกสารนั้น ไม่มีค่าที่คิดขึ้นเองแม้แต่ค่าเดียว
+      (ตรวจอัตโนมัติแล้ว — ถ้าเพิ่มสีใหม่ ต้องเป็นค่าที่มีในเอกสารเท่านั้น)
 
-   ⚠️ ห้ามเขียน hex ลงในไฟล์นี้นอกบล็อกโทเคนข้างล่าง และห้ามเขียนใน app.js
-      กราฟอ่านสีจากโทเคนชุดนี้ผ่าน cssVar() แก้ที่เดียวเปลี่ยนทั้งระบบ
+   ⚠️ กติกาสี 4 ข้อ ห้ามแหก
+      1. RTA Green #122017 คือสีรากฐาน — ห้ามใช้ #000000 เด็ดขาด
+      2. แดง Alert #F05152 = "ข่าวลบ" เท่านั้น ห้ามใช้ตกแต่ง
+      3. RTA Yellow #FCBA54 = accent — ใช้เฉพาะ "สิ่งที่เลือกอยู่" + focus ring
+         ห้ามเป็นตัวอักษรบนพื้นขาว (contrast 1.71:1)
+      4. หมวดข่าวไม่มีสีประจำ ใช้ชิปเส้นขอบสีเดียวกันหมด
 
-   ⚠️ โหมดมืด/สว่างกำหนดด้วย data-theme บน <html> เท่านั้น
-      สคริปต์ใน <head> ของ index.html เป็นคนตั้งค่า (อ่าน localStorage → OS)
-      จงใจไม่ใช้ @media (prefers-color-scheme) เพื่อไม่ให้มีโทเคน 2 ชุดต้องซิงก์กัน
+   ⚠️ ห้ามเขียน hex นอกบล็อกโทเคนข้างล่าง และห้ามเขียนใน app.js
+      กราฟอ่านสีผ่าน cssVar() แก้ที่เดียวเปลี่ยนทั้งระบบ
+
+   ⚠️ ฟอนต์ Kanit เก็บไว้เอง (self-host) ที่ fonts/ ตาม §17.1 ของเอกสาร
+      ห้ามกลับไปใช้ Google Fonts CDN — เหตุผล: หน่วยราชการหลายแห่งบล็อกโดเมนภายนอก
+      และการเรียก CDN ส่ง IP ผู้ใช้ออกนอกประเทศ (ประเด็น PDPA)
+      ต้องเก็บ fonts/LICENSE (SIL OFL 1.1) ไว้คู่กันเสมอ ห้ามลบ
+
+   ⚠️ บันไดความสว่างของแท่งกราฟ — วัดแล้ว ห้ามเปลี่ยนเป็นเขียวอ่อน
+      Jade #499D71 สว่าง 26.7% และ Leaf #4A8C54 สว่าง 20.9%
+      "เท่ากับแท่งแดง Alert 25%" พอดี → วางติดกันแล้วกลืนเป็นแท่งเดียว (cr 1.06-1.16)
+      จึงใช้ Sand #FCE375 (77%) เป็นแท่งไทย-กัมพูชาแทน
    ============================================================ */
 
-/* ------------------------------------------------------------
-   สีต้นทาง 10 ช่องจากพาเลตต์ที่ผู้ใช้เลือก (เรียงตามระดับเทา)
-     4%  #1C3A5E กรมเข้ม   |   7%  #34496E กรมม่วง   |   8%  #2E5578 กรมท่า
-    17%  #3F7A9C ฟ้าเข้ม   |  19%  #E23744 แดง      |  33%  #6DA4BB ฟ้าเทา
-    45%  #EF9C9C ชมพูอ่อน  |  63%  #A9D9DC ฟ้าอ่อน  |  74%  #C9E5E3 ฟ้าซีด
-    92%  #EFF9F1 ขาวมิ้นต์
-
-   ⭐ ข้อได้เปรียบใหญ่ของพาเลตต์นี้: คู่หลักคือ "แดง กับ น้ำเงิน" ไม่ใช่ "แดง กับ เขียว"
-      แดง-เขียว เป็นแกนที่คนตาบอดสีชนิดที่พบบ่อยที่สุดแยกไม่ออก
-      แดง-น้ำเงิน เป็นแกนที่แยกออกทุกชนิด และพาเลตต์นี้ยังมีช่วงความสว่าง
-      กว้างตั้งแต่ 4% ถึง 92% จึงทำ "บันไดความสว่าง" ให้แท่งกราฟได้จริง
-      (พาเลตต์เขียวชุดก่อนทำไม่ได้ — ลบกับไม่ลบสว่างเท่ากันจนกลืน)
-   ------------------------------------------------------------ */
+/* ---------- Kanit — 4 น้ำหนัก × ไทย/ละติน = 8 ไฟล์ ~128 KB (§13.1) ---------- */
+@font-face{font-family:'Kanit';font-style:normal;font-weight:400;font-display:swap;
+  src:url('fonts/kanit-thai-400.woff2') format('woff2');
+  unicode-range:U+0E01-0E5B,U+200C-200D,U+25CC;}
+@font-face{font-family:'Kanit';font-style:normal;font-weight:400;font-display:swap;
+  src:url('fonts/kanit-latin-400.woff2') format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD;}
+@font-face{font-family:'Kanit';font-style:normal;font-weight:500;font-display:swap;
+  src:url('fonts/kanit-thai-500.woff2') format('woff2');
+  unicode-range:U+0E01-0E5B,U+200C-200D,U+25CC;}
+@font-face{font-family:'Kanit';font-style:normal;font-weight:500;font-display:swap;
+  src:url('fonts/kanit-latin-500.woff2') format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD;}
+@font-face{font-family:'Kanit';font-style:normal;font-weight:600;font-display:swap;
+  src:url('fonts/kanit-thai-600.woff2') format('woff2');
+  unicode-range:U+0E01-0E5B,U+200C-200D,U+25CC;}
+@font-face{font-family:'Kanit';font-style:normal;font-weight:600;font-display:swap;
+  src:url('fonts/kanit-latin-600.woff2') format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD;}
+@font-face{font-family:'Kanit';font-style:normal;font-weight:700;font-display:swap;
+  src:url('fonts/kanit-thai-700.woff2') format('woff2');
+  unicode-range:U+0E01-0E5B,U+200C-200D,U+25CC;}
+@font-face{font-family:'Kanit';font-style:normal;font-weight:700;font-display:swap;
+  src:url('fonts/kanit-latin-700.woff2') format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2212,U+FEFF,U+FFFD;}
 
 :root {
   color-scheme: light;
 
-  --bg: #EEF6F5;
-  --surface: #FFFFFF;
-  --surface-2: #DCEDEC;
-  --surface-hover: #E5F1F0;
+  /* ---------- พื้นผิว ---------- */
+  --bg: #E7E9E8;             /* green-10 = surface/sunken */
+  --surface: #FFFFFF;        /* surface/raised */
+  --surface-2: #E7E9E8;      /* green-10 */
+  --surface-hover: #FEF1DD;  /* yellow-20 = แถวตาราง hover (§9.7) */
 
-  --border: #C9E5E3;
-  --border-strong: #6DA4BB;
-  --grid: #DCEDEC;
+  /* ---------- เส้น ---------- */
+  --border: #D0D2D1;         /* green-20 (§9.5 ขอบการ์ด) */
+  --border-strong: #88908B;  /* green-50 (§9.6 ขอบ input ผ่าน 3:1) */
+  --grid: #D0D2D1;           /* §10.5 */
 
-  --text: #1C3A5E;
-  --text-2: #2E5578;
-  --text-secondary: #4A6B85;
+  /* ---------- ตัวอักษร ---------- */
+  --text: #122017;
+  --text-2: #414D45;         /* green-80 · 8.85:1 */
+  --text-secondary: #59635D; /* green-70 · 6.24:1 (green-60 ตก 4.48) */
 
-  --accent: #2E5578;
+  /* ---------- สิ่งที่กดได้ ---------- */
+  --accent: #1B593C;         /* Pine · 8.27:1 (§9.2 ลิงก์บนพื้นขาว) */
   --accent-on: #FFFFFF;
+  --brand: #FCBA54;          /* RTA Yellow — เฉพาะสิ่งที่เลือกอยู่ + focus */
+  --brand-on: #122017;       /* 9.87:1 */
 
-  --neg: #C22836;         /* แดงเข้ม — ใช้เป็น "ตัวอักษร" บนพื้นอ่อน */
-  --neg-fill: #C22836;    /* แดงเข้ม — ใช้เป็น "พื้น" ของแท็กข่าวลบ */
-  --neg-on: #FFFFFF;      /* ตัวอักษรบน --neg-fill */
-  --neg-bar: #E23744;     /* แดงสด — กรอบการ์ดข่าวลบ */
-  --neg-bg: #FDECEE;
+  /* ---------- แถบหัวเว็บ/ท้ายเว็บ ---------- */
+  --topbar: #122017;
+  --topbar-text: #FFFFFF;
+  --topbar-muted: #B8BCB9;   /* green-30 · 8.78:1 บนเขียว */
+  --topbar-line: #2A362E;    /* green-90 */
+  --topbar-btn-border: #88908B;
+  --topbar-btn-hover: #1B593C;
 
-  /* บันไดความสว่างของแท่งกราฟ — ระดับเทา ลบ 19% / ไม่ลบ 2% / ทั่วไป 63%
-     ⚠️ ต้องห่างกันด้วย "ความสว่าง" ไม่ใช่แค่ "สี"
-        เพราะแท่งซ้อนติดกัน ถ้าสว่างเท่ากันจะกลืนเป็นแท่งเดียว */
-  --chart-neg: #E23744;
-  --chart-main: #14293F;
-  --chart-soft: #A9D9DC;
+  /* ---------- ข่าวลบ ---------- */
+  --neg: #BE4041;            /* alert-text §7.4 · 5.25:1 */
+  --neg-fill: #F05152;
+  --neg-on: #122017;         /* §9.1 ปุ่ม Danger · 4.82:1 */
+  --neg-bar: #F05152;
+  --neg-bg: #FEEEEE;         /* alert-10 */
 
-  --shadow-panel: 0 8px 24px rgba(28, 58, 94, 0.16);
+  /* ---------- กราฟ — บันไดความสว่าง 77% / 25% / 1% ---------- */
+  --chart-main: #FCE375;     /* Sand — ไทย-กัมพูชา */
+  --chart-neg: #F05152;      /* Alert — ข่าวลบ */
+  --chart-soft: #122017;     /* RTA Green — ข่าวทั่วไป */
+  --seg-line: #88908B;       /* green-50 — เส้นขอบแท่ง กัน Sand จมพื้นขาว (1.28:1) */
+
+  --shadow-panel: 0 12px 32px rgba(18, 32, 23, 0.16);
+
+  /* ---------- ตัวอักษร (§17.2) ---------- */
+  --font-brand: 'Kanit', 'Noto Sans Thai', system-ui, -apple-system, sans-serif;
+  --fs-h2: 1.5rem;      /* 24px */
+  --fs-h3: 1.25rem;     /* 20px */
+  --fs-h4: 1.125rem;    /* 18px */
+  --fs-body: 1rem;      /* 16px */
+  --fs-sm: 0.875rem;    /* 14px — เล็กที่สุดที่อนุญาต (กฎเหล็กข้อ 9) */
+  --lh-h2: 1.35;
+  --lh-h3: 1.40;
+  --lh-h4: 1.55;
+  --lh-ui: 1.45;
+  --lh-body: 1.75;
+  --lh-dense: 1.60;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #10202F;
-  --surface: #1B3454;
-  --surface-2: #253F60;
-  --surface-hover: #2A4769;
+  --bg: #122017;             /* RTA Green = surface/page */
+  --surface: #10402E;        /* Forest = surface/raised */
+  --surface-2: #1B593C;      /* Pine */
+  --surface-hover: #1B593C;
 
-  --border: #34496E;
-  --border-strong: #517E9B;
-  --grid: #2A4364;
+  --border: #2A362E;         /* green-90 */
+  /* ⚠️ green-80 #414D45 ได้แค่ 1.42:1 บนการ์ด Forest — ขอบชิปแทบมองไม่เห็น
+     เอกสาร §4.3 วัดกับพื้นหน้า #122017 ไม่ใช่พื้นการ์ด จึงต้องยกขึ้น 1 ระดับ */
+  --border-strong: #88908B;  /* green-50 · 3.57:1 บนการ์ด */
+  --grid: #2A362E;
 
-  --text: #EAF4F3;
-  --text-2: #C9E5E3;
-  --text-secondary: #92B4C4;
+  --text: #FFFFFF;
+  --text-2: #E7E9E8;         /* green-10 · 9.59:1 บนการ์ด (green-30 ได้ 6.09 กลืนเกินไป) */
+  --text-secondary: #B8BCB9; /* green-30 · 6.09:1 บนการ์ด */
 
-  --accent: #A9D9DC;
-  --accent-on: #10202F;
+  --accent: #FCBA54;         /* 6.85:1 บนการ์ด (§8.1 dark link) */
+  --accent-on: #122017;
+  --brand: #FCBA54;
+  --brand-on: #122017;
 
-  /* ⚠️ โหมดมืดกลับด้าน: แท็กข่าวลบใช้ "พื้นชมพูอ่อน + ตัวอักษรกรมเข้ม"
-     ถ้าใช้พื้นแดงสด + ตัวอักษรขาวเหมือนโหมดสว่าง จะได้แค่ 4.32:1 ไม่ผ่านเกณฑ์ */
-  --neg: #EF9C9C;
-  --neg-fill: #EF9C9C;
-  --neg-on: #10202F;
-  --neg-bar: #E23744;
-  --neg-bg: #38202A;
+  --topbar: #0C160F;         /* surface/sunken dark (§4.1) */
+  --topbar-text: #FFFFFF;
+  --topbar-muted: #B8BCB9;
+  --topbar-line: #2A362E;
+  --topbar-btn-border: #88908B;
+  --topbar-btn-hover: #1B593C;
 
-  /* บันไดความสว่าง โหมดมืด — ลบ 21% / ไม่ลบ 82% / ทั่วไป 8% */
-  --chart-neg: #E04A55;
-  --chart-main: #D6EEEF;
-  --chart-soft: #2E5578;
+  /* ⚠️ Alert #F05152 ได้แค่ 3.35:1 บนการ์ด Forest — ต้องใช้ tint ที่อ่อนกว่า */
+  --neg: #F8A8A8;            /* alert-50 · 6.22:1 */
+  --neg-fill: #FACBCB;       /* alert-30 — กลับด้าน: พื้นชมพูอ่อน + อักษรเขียวเข้ม */
+  --neg-on: #122017;         /* 11.62:1 */
+  --neg-bar: #F05152;
+  --neg-bg: #122017;         /* เข้มกว่าการ์ด + กรอบแดง = อ่านออกว่าเป็นข่าวลบ */
 
-  --shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.55);
+  /* ---------- กราฟ — บันไดความสว่าง 77% / 50% / 25% ---------- */
+  --chart-main: #FCE375;     /* Sand — ไทย-กัมพูชา */
+  --chart-soft: #B8BCB9;     /* green-30 — ข่าวทั่วไป */
+  --chart-neg: #F05152;      /* Alert — ข่าวลบ */
+  --seg-line: #10402E;       /* = สีการ์ด จึงเห็นเป็นร่องว่าง (โหมดมืดแท่งชัดอยู่แล้ว) */
+
+  --shadow-panel: 0 12px 32px rgba(0, 0, 0, 0.55);
 }
 
 * { box-sizing: border-box; }
 
+html { font-size: 100%; }   /* เคารพขนาดตัวอักษรที่ผู้ใช้ตั้งไว้ (ปุ่มปรับขนาดคูณทับค่านี้) */
+
 body {
   margin: 0;
-  font-family: "Anuphan", "Sarabun", -apple-system, "Segoe UI", Tahoma, sans-serif;
+  font-family: var(--font-brand);
+  font-size: var(--fs-body);
+  font-weight: 400;
+  line-height: var(--lh-body);
+  letter-spacing: 0;
   background: var(--bg);
   color: var(--text);
+  /* ⚠️ ห้ามเบราว์เซอร์สังเคราะห์ตัวหนา/เอียง — Kanit ไม่มีหัว ถ้าสังเคราะห์
+     สระและวรรณยุกต์ไทยจะเบลอติดกัน (§13.3) */
+  font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* ⚠️ ภาษาไทยไม่มีช่องว่างระหว่างคำ ห้าม break-all และห้าม hyphens (§16.5) */
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: none;
 }
+
+/* โฟกัสมองเห็นชัดทุกที่ — RTA Yellow หนา 3px (§7.5) */
+:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
 
 /* ---------- หัวเว็บ ---------- */
 .topbar {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: var(--topbar);
+  color: var(--topbar-text);
+  border-bottom: 1px solid var(--topbar-line);
   padding: 18px 16px;
 }
 
@@ -131,16 +208,18 @@ body {
 }
 
 .topbar h1 {
-  font-size: 1.0625rem;
+  font-size: var(--fs-h4);
   font-weight: 600;
-  letter-spacing: -0.01em;
+  line-height: var(--lh-h4);
+  letter-spacing: 0;   /* ⚠️ ค่าติดลบใช้ได้เฉพาะ Display >= 44px (§16.1) */
   margin: 0 0 5px;
-  color: var(--text);
+  color: var(--topbar-text);
 }
 
 .last-updated {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-ui);
+  color: var(--topbar-muted);
   margin: 0;
 }
 
@@ -160,8 +239,9 @@ body {
 }
 
 .fontsize-label {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-ui);
+  color: var(--topbar-muted);
   white-space: nowrap;
 }
 
@@ -172,32 +252,29 @@ body {
 
 .fontsize-btn,
 .theme-btn {
-  min-height: 36px;
-  padding: 6px 12px;
-  font-size: 0.8125rem;
+  min-height: 40px;
+  padding: 8px 14px;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  line-height: var(--lh-ui);
   font-family: inherit;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 7px;
+  color: var(--topbar-text);
+  background: transparent;
+  border: 1px solid var(--topbar-btn-border);
+  border-radius: 8px;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .fontsize-btn:hover,
-.theme-btn:hover { background: var(--surface-hover); }
+.theme-btn:hover { background: var(--topbar-btn-hover); }
 
+/* ปุ่มที่เลือกอยู่ = จุดเน้นเหลืองจุดเดียวของแถบหัวเว็บ */
 .fontsize-btn.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-on);
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-on);
   font-weight: 600;
-}
-
-.fontsize-btn:focus-visible,
-.theme-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 @media (max-width: 640px) {
@@ -214,9 +291,12 @@ body {
 
 .footer {
   text-align: center;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
+  background: var(--topbar);
+  color: var(--topbar-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-ui);
   padding: 24px 20px;
+  margin-top: 28px;
 }
 
 /* ---------- การ์ดสถิติ ---------- */
@@ -238,16 +318,19 @@ body {
   padding: 14px 16px;
 }
 
+/* ⚠️ ใช้ --text-2 ไม่ใช่ --text-secondary — การ์ดสถิติมีพื้นเข้มกว่าการ์ดปกติ
+   (สว่าง = green-10 · มืด = Pine) วัดแล้ว --text-secondary บนพื้น Pine ได้แค่ 4.30:1 ไม่ผ่าน AA */
 .stat-card .label {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-ui);
+  color: var(--text-2);
   margin: 0 0 5px;
 }
 
 .stat-card .value {
-  font-size: 1.5rem;
-  font-weight: 600;
-  line-height: 1.1;
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  line-height: var(--lh-h2);
   margin: 0;
   color: var(--text);
 }
@@ -257,9 +340,9 @@ body {
 
 /* ตัวเลขรองในการ์ดสถิติ เช่น "% ของทั้งหมด" */
 .stat-card .value-sub {
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   font-weight: 400;
-  color: var(--text-secondary);
+  color: var(--text-2);
   margin-left: 6px;
 }
 
@@ -278,7 +361,7 @@ body {
   border-radius: 8px;
   border: 1px solid var(--border);
   font-family: inherit;
-  font-size: 0.875rem;
+  font-size: var(--fs-sm);
   margin-bottom: 12px;
   background: var(--bg);
   color: var(--text);
@@ -302,13 +385,13 @@ select, .date-label input {
   border-radius: 8px;
   border: 1px solid var(--border);
   font-family: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   background: var(--bg);
   color: var(--text);
 }
 
 .date-label {
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
   display: flex;
   align-items: center;
@@ -316,7 +399,7 @@ select, .date-label input {
 }
 
 .checkbox-label {
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   color: var(--text);
   display: flex;
   align-items: center;
@@ -342,7 +425,7 @@ select, .date-label input {
   background: transparent;
   color: var(--text);
   font-family: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 
@@ -357,14 +440,14 @@ select, .date-label input {
   color: var(--accent-on);
   font-family: inherit;
   font-weight: 600;
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 
 .export-btn:active { opacity: 0.85; }
 
 .result-count {
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
   margin: 0 0 12px;
 }
@@ -384,7 +467,7 @@ select, .date-label input {
   background: var(--surface);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.875rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 
@@ -416,7 +499,7 @@ select, .date-label input {
 .chart-grid .chart-card { margin-bottom: 0; }
 
 .chart-title {
-  font-size: 0.875rem;
+  font-size: var(--fs-h4);
   font-weight: 600;
   color: var(--text);
   margin: 0 0 14px;
@@ -445,7 +528,7 @@ select, .date-label input {
   background: var(--bg);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   min-width: 140px;
   text-align: left;
@@ -472,7 +555,7 @@ select, .date-label input {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.8125rem;
+  font-size: var(--fs-sm);
   color: var(--text);
   padding: 6px 5px;
   cursor: pointer;
@@ -482,7 +565,7 @@ select, .date-label input {
 .multiselect-panel label:hover { background: var(--surface-hover); }
 
 .multiselect-panel .ms-clear {
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--accent);
   cursor: pointer;
   padding: 6px 5px;
@@ -501,7 +584,7 @@ select, .date-label input {
   text-align: center;
   color: var(--text-secondary);
   padding: 44px 0;
-  font-size: 0.875rem;
+  font-size: var(--fs-sm);
   grid-column: 1 / -1;
 }
 
@@ -528,14 +611,14 @@ select, .date-label input {
   position: absolute;
   top: 10px;
   right: 10px;
-  font-size: 0.75rem;
-  line-height: 1;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-ui);
   padding: 4px 9px;
   border-radius: 999px;
   border: 1px solid var(--border-strong);
   background: var(--surface);
   color: var(--text-secondary);
-  letter-spacing: -1px;
+  letter-spacing: 0;   /* ⚠️ ห้ามค่าติดลบกับข้อความไทย (§16.1) */
   white-space: nowrap;
   cursor: default;
   z-index: 1;
@@ -544,7 +627,7 @@ select, .date-label input {
 /* ป้ายหมวด — ชิปเส้นขอบสีเดียวทุกหมวด ไม่มีสีประจำหมวด */
 .news-card .badge {
   display: inline-block;
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   font-weight: 500;
   padding: 3px 10px;
   border-radius: 6px;
@@ -566,25 +649,26 @@ select, .date-label input {
   background: var(--neg-fill);
   border-color: var(--neg-fill);
   color: var(--neg-on);
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   padding: 3px 11px;
   margin-bottom: 0;
 }
 
 .news-card .title {
-  font-size: 0.9375rem;
+  font-size: var(--fs-h4);
   font-weight: 600;
   margin: 6px 0 8px;
-  line-height: 1.5;
+  line-height: var(--lh-h4);
   color: var(--text);
 }
 
 .news-card .summary {
-  font-size: 0.875rem;
+  font-size: var(--fs-body);
   color: var(--text-2);
   margin: 0 0 5px;
-  line-height: 1.65;
+  line-height: var(--lh-body);
+  max-width: 42rem;   /* §16.2 ความยาวบรรทัดสูงสุด */
   display: -webkit-box;
   -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
@@ -600,7 +684,7 @@ select, .date-label input {
   background: none;
   border: none;
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   font-family: inherit;
   padding: 0;
   margin: 0 0 10px;
@@ -610,7 +694,7 @@ select, .date-label input {
 .news-card .read-more:hover { text-decoration: underline; }
 
 .news-card .meta {
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
   margin: 0 0 10px;
 }
@@ -622,7 +706,7 @@ select, .date-label input {
 }
 
 .news-card .sources a {
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--accent);
   text-decoration: none;
   word-break: break-all;
@@ -632,7 +716,7 @@ select, .date-label input {
 .news-card .sources a:active { opacity: 0.6; }
 
 .news-card .sources .more-sources {
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
 

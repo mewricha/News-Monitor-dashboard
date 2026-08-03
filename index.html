@@ -20,9 +20,13 @@
 })();
 </script>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&display=swap">
+<!-- ⚠️ ฟอนต์ Kanit เก็บไว้เอง (self-host) ตาม §17.1 ของ RTA Brand Design System
+     ห้ามกลับไปใช้ Google Fonts CDN — หน่วยราชการหลายแห่งบล็อกโดเมนภายนอก
+     และการเรียก CDN ส่ง IP ผู้ใช้ออกนอกประเทศ (ประเด็น PDPA)
+     ประกาศ @font-face อยู่หัวไฟล์ style.css · ห้ามลบ fonts/LICENSE (SIL OFL 1.1)
+     preload เฉพาะน้ำหนักที่เห็นทันทีในหน้าจอแรก: ไทย 400 (เนื้อหา) และ 600 (หัวข้อ) -->
+<link rel="preload" href="fonts/kanit-thai-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/kanit-thai-600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 <script src="chart.min.js"></script>
 </head>
