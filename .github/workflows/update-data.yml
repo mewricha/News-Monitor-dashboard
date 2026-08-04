@@ -12,9 +12,22 @@ on:
     - cron: '17 1-15 * * *'    # UTC 01:17-15:17 = ไทย 08:17-22:17 ทุกชั่วโมง
     - cron: '17 18,21 * * *'   # UTC 18:17,21:17 = ไทย 01:17, 04:17
   workflow_dispatch:
+    inputs:
+      allow_shrink:
+        description: 'ยอมให้จำนวนข่าวลดลงเกิน 20% (ใช้เมื่อเพิ่งลบข่าวจำนวนมากในชีตเอง)'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
+
+# ⭐ เพิ่ม 4 ส.ค. 69 — กันรอบซ้อนกัน
+#    ถ้ารอบก่อนยังไม่จบแล้วรอบใหม่มาถึง ให้ต่อคิวรอ ไม่ใช่รันพร้อมกัน
+#    รันพร้อมกัน 2 รอบ = git push ชนกัน รอบหลังล้มด้วย non-fast-forward
+concurrency:
+  group: update-news-data
+  cancel-in-progress: false
 
 jobs:
   update-data:
@@ -35,11 +48,25 @@ jobs:
         run: npm run build
         env:
           SHEET_CSV_URL: ${{ secrets.SHEET_CSV_URL }}
+          # ส่งต่อค่าจากช่องติ๊กตอนกด Run workflow — รอบตามเวลาจะได้ค่าว่าง = ไม่อนุญาต
+          ALLOW_SHRINK: ${{ inputs.allow_shrink }}
 
+      # ⭐ แก้ 4 ส.ค. 69 (S19): เดิม generatedAt เปลี่ยนทุกรอบ ไฟล์จึงต่างทุกรอบ
+      #    ตัวกัน "commit เฉพาะเมื่อเปลี่ยน" บรรทัดล่างจึงไม่เคยได้ทำงานเลย
+      #    ตอนนี้ fetch-and-build.js จะไม่เขียนไฟล์ถ้าเนื้อข่าวเหมือนเดิม
+      #    → git diff --staged --quiet จึงเป็นจริงได้จริง และรอบนั้นจะไม่ commit
       - name: Commit and push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/news.json
-          git diff --staged --quiet || git commit -m "อัปเดตข้อมูลข่าวอัตโนมัติ [skip ci]"
+          if git diff --staged --quiet; then
+            echo "⏸️ ข้อมูลไม่เปลี่ยนจากรอบก่อน — ไม่ commit"
+            echo "⏸️ ข้อมูลไม่เปลี่ยนจากรอบก่อน — ไม่มี commit ในรอบนี้" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git commit -m "อัปเดตข้อมูลข่าวอัตโนมัติ [skip ci]"
+          # ดึงของใหม่บนรีโมตมารวมก่อน push กันชนกับ commit อื่นที่เพิ่งเข้ามา
+          git pull --rebase --autostash origin "$GITHUB_REF_NAME"
           git push
+          echo "✅ อัปเดต data/news.json แล้ว" >> "$GITHUB_STEP_SUMMARY"
