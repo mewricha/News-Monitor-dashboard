@@ -720,6 +720,18 @@ select, .date-label input {
   color: var(--text-secondary);
 }
 
+/* ⭐ เพิ่ม 4 ส.ค. 69 (R11) — ลิงก์ที่ scheme ไม่ใช่ http/https จะไม่ถูกทำเป็น <a>
+   แต่ยังต้องแสดงชื่อสำนักข่าวให้เห็นว่ามีข่าวชิ้นนี้อยู่ ใช้สีจาง + ขีดเส้นใต้ประ
+   เพื่อสื่อว่า "มีอยู่ แต่กดไม่ได้" ต่างจากลิงก์ปกติชัดเจน
+   หมายเหตุ: ข้อมูลจริง 4 ส.ค. 69 ยังไม่มีแถวไหนเข้าเงื่อนไขนี้เลย (https 1,849 · http 2) */
+.news-card .sources .src-broken {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  text-decoration: underline dotted;
+  word-break: break-all;
+  cursor: help;
+}
+
 /* ---------- Responsive: แท็บเล็ต ---------- */
 @media (min-width: 640px) {
   .results-grid { grid-template-columns: repeat(2, 1fr); }
