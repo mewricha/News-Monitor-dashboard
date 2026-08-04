@@ -737,10 +737,18 @@ initTheme();
  * ชุดสีของกราฟ — อ่านสดจากโทเคน CSS ทุกครั้งที่วาด
  * ⚠️ ห้ามเก็บผลลัพธ์ไว้ในตัวแปรระดับไฟล์ ต้องเรียกใหม่ทุกครั้งที่วาดกราฟ
  *    ไม่งั้นพอสลับโหมดมืด/สว่าง กราฟจะยังใช้สีของโหมดเดิม
- * ความหมายของแต่ละสี (ดูกติกาใน style.css)
- *    neg  = ข่าวลบ (แดง — ใช้กับข่าวลบเท่านั้น)
- *    main = ข่าวไม่ลบ / ไทย-กัมพูชา (เขียวเข้ม)
- *    soft = ข่าวทั่วไป-อื่นๆ (เขียวอ่อน)
+ * 🔑 ความหมายของแต่ละสี — ยกเครื่อง 4 ส.ค. 69 ให้ใช้ชุดเดียวกันทุกกราฟ
+ *    neg  = ข่าวลบ        (แดง Alert — ใช้กับข่าวลบเท่านั้น)
+ *    main = ไทย-กัมพูชา   (เหลือง Sand — สงวนไว้ให้ความหมายนี้เท่านั้น)
+ *    soft = ข่าวอื่นๆ     (เขียว — สว่าง Pine / มืด Jade 60%)
+ *
+ * ⚠️ ของเดิมกราฟ "หมวดข่าว" ใช้ main (เหลือง) แทน "ข่าวไม่ลบ"
+ *    ทำให้สีเหลืองมี 2 ความหมายในหน้าเดียวกัน — ผู้ใช้จับได้เอง 4 ส.ค.
+ *    ตอนนี้กราฟหมวดข่าวไม่ใช้เหลืองเลย เพราะกราฟนั้นไม่มีมิติไทย-กัมพูชา
+ *    (ชายแดนไทย-กัมพูชาเป็น 1 ในแถวอยู่แล้ว ถ้าแยกอีกจะนับซ้อน)
+ *
+ * ⚠️ คำในคำอธิบายกราฟต้องเป็น "ข่าวลบ / ไทย-กัมพูชา / ข่าวอื่นๆ" เท่านั้น
+ *    ห้ามกลับไปใช้ "ข่าวไม่ลบ" หรือ "ข่าวทั่วไป" อีก
  */
 function chartColors() {
   return {
@@ -814,7 +822,7 @@ function renderChartStats(allTopics) {
     '<div class="stat-card"><p class="label">ประเด็นไทย-กัมพูชา</p><p class="value accent">' + camCount + '</p></div>';
 }
 /**
- * กราฟหมวดข่าว — แท่งแนวนอนซ้อน "ข่าวลบ + ข่าวไม่ลบ"
+ * กราฟหมวดข่าว — แท่งแนวนอนซ้อน "ข่าวลบ + ข่าวอื่นๆ"
  *
  * ⚠️ เปลี่ยนจากโดนัทเป็นแท่งแนวนอน 2 ส.ค. 69 (เย็น)
  *    โดนัทบอกได้แค่ "หมวดไหนเยอะ" แต่บอกไม่ได้ว่า "หมวดไหนมีข่าวลบเยอะ"
@@ -853,8 +861,10 @@ function renderCategoryBar(newsList) {
       datasets: [
         Object.assign({ label: 'ข่าวลบ', data: rows.map(function (r) { return r.neg; }),
           backgroundColor: c.neg, stack: 'c' }, barSeparator(c)),
-        Object.assign({ label: 'ข่าวไม่ลบ', data: rows.map(function (r) { return r.pos; }),
-          backgroundColor: c.main, stack: 'c' }, barSeparator(c))
+        // ⭐ 4 ส.ค. 69: เดิมเป็น label 'ข่าวไม่ลบ' + c.main (เหลือง)
+        //    เปลี่ยนเป็น 'ข่าวอื่นๆ' + c.soft (เขียว) เพื่อคืนเหลืองให้ไทย-กัมพูชาอย่างเดียว
+        Object.assign({ label: 'ข่าวอื่นๆ', data: rows.map(function (r) { return r.pos; }),
+          backgroundColor: c.soft, stack: 'c' }, barSeparator(c))
       ]
     },
     options: {
@@ -912,9 +922,10 @@ function renderSourceBar(newsList) {
     data: {
       labels: top.map(function (t) { return t.source; }),
       datasets: [
-        Object.assign({ label: 'ไทย-กัมพูชา', data: top.map(function (t) { return t.cam; }), backgroundColor: c.main, stack: 's' }, barSeparator(c)),
+        // ⭐ 4 ส.ค. 69: เรียงข่าวลบขึ้นก่อนให้เหมือนกันทุกกราฟ + เปลี่ยน 'ข่าวทั่วไป' เป็น 'ข่าวอื่นๆ'
         Object.assign({ label: 'ข่าวลบ', data: top.map(function (t) { return t.neg; }), backgroundColor: c.neg, stack: 's' }, barSeparator(c)),
-        Object.assign({ label: 'ข่าวทั่วไป', data: top.map(function (t) { return t.other; }), backgroundColor: c.soft, stack: 's' }, barSeparator(c))
+        Object.assign({ label: 'ไทย-กัมพูชา', data: top.map(function (t) { return t.cam; }), backgroundColor: c.main, stack: 's' }, barSeparator(c)),
+        Object.assign({ label: 'ข่าวอื่นๆ', data: top.map(function (t) { return t.other; }), backgroundColor: c.soft, stack: 's' }, barSeparator(c))
       ]
     },
     options: {
@@ -969,9 +980,10 @@ function renderTrendBar(newsList) {
     data: {
       labels: labels,
       datasets: [
-        Object.assign({ label: 'ไทย-กัมพูชา', data: camSeries, backgroundColor: c.main, stack: 's' }, barSeparator(c)),
+        // ⭐ 4 ส.ค. 69: เรียงข่าวลบขึ้นก่อนให้เหมือนกันทุกกราฟ + เปลี่ยน 'อื่นๆ' เป็น 'ข่าวอื่นๆ'
         Object.assign({ label: 'ข่าวลบ', data: negSeries, backgroundColor: c.neg, stack: 's' }, barSeparator(c)),
-        Object.assign({ label: 'อื่นๆ', data: otherSeries, backgroundColor: c.soft, stack: 's' }, barSeparator(c))
+        Object.assign({ label: 'ไทย-กัมพูชา', data: camSeries, backgroundColor: c.main, stack: 's' }, barSeparator(c)),
+        Object.assign({ label: 'ข่าวอื่นๆ', data: otherSeries, backgroundColor: c.soft, stack: 's' }, barSeparator(c))
       ]
     },
     options: {
