@@ -91,14 +91,30 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # ⭐ เพิ่ม 8 ส.ค. 69 (S20): commit ไฟล์ชีพจรด้วย
+          #    heartbeat.json เปลี่ยนทุกรอบที่ตรวจสำเร็จ (~120 ไบต์) จึงมี commit ทุกชั่วโมง
+          #    ยอมรับได้เพราะเหตุผลจริงของ S19 คือ "ไฟล์ 1.9 MB × 17 รอบ/วัน"
+          #    ไม่ใช่ "จำนวน commit" — ของเล็กขนาดนี้ไม่กระทบอะไร
+          #    ⚠️ ข้อความ commit ต่างกันตามของที่เปลี่ยน เพื่อให้ไล่ history ย้อนหลังได้ว่า
+          #       ช่วงไหนข่าวเข้าจริง ช่วงไหนแค่ตรวจแล้วไม่มีของใหม่
+          #    ⚠️ ใช้ [ -f ] คุมก่อน git add เพราะ git add กับไฟล์ที่ไม่มีอยู่จะ "ล้มทั้งขั้น"
+          #       (รอบแรกสุดก่อนติดตั้ง S20 หรือรุ่นเก่าที่ยังไม่เขียนชีพจร)
           git add data/news.json
+          [ -f data/heartbeat.json ] && git add data/heartbeat.json
           if git diff --staged --quiet; then
-            echo "⏸️ ข้อมูลไม่เปลี่ยนจากรอบก่อน — ไม่ commit"
-            echo "⏸️ ข้อมูลไม่เปลี่ยนจากรอบก่อน — ไม่มี commit ในรอบนี้" >> "$GITHUB_STEP_SUMMARY"
+            echo "⏸️ ไม่มีอะไรเปลี่ยนเลยแม้แต่ชีพจร — ไม่ commit"
+            echo "   (ปกติไม่ควรเกิดหลังติดตั้ง S20 ถ้าเกิดซ้ำ ๆ ให้ดูว่าขั้น build เขียนชีพจรหรือยัง)"
+            echo "⏸️ ไม่มีอะไรเปลี่ยน — ไม่มี commit ในรอบนี้" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          git commit -m "อัปเดตข้อมูลข่าวอัตโนมัติ [skip ci]"
+          if git diff --staged --quiet -- data/news.json; then
+            git commit -m "ชีพจร: ตรวจแล้วไม่มีข่าวใหม่ [skip ci]"
+            SUMMARY="💓 ไม่มีข่าวใหม่ — อัปเดตเฉพาะ data/heartbeat.json"
+          else
+            git commit -m "อัปเดตข้อมูลข่าวอัตโนมัติ [skip ci]"
+            SUMMARY="✅ อัปเดต data/news.json แล้ว"
+          fi
           # ดึงของใหม่บนรีโมตมารวมก่อน push กันชนกับ commit อื่นที่เพิ่งเข้ามา
           git pull --rebase --autostash origin "$GITHUB_REF_NAME"
           git push
-          echo "✅ อัปเดต data/news.json แล้ว" >> "$GITHUB_STEP_SUMMARY"
+          echo "$SUMMARY" >> "$GITHUB_STEP_SUMMARY"
