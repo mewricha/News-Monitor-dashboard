@@ -155,6 +155,56 @@ function thaiDayEndMs(ymd) {
   return isNaN(ms) ? null : ms;
 }
 
+// ============================================================
+// ⭐ S20 — ป้าย "ตรวจสอบล่าสุด" (เพิ่ม 8 ส.ค. 69)
+//
+// 🔴 เรื่องจริงที่ทำให้ต้องมี: 8 ส.ค. 69 หน้าเว็บค้างที่ 07:37 น. นาน 4 ชั่วโมง
+//    ไล่ตรวจทุกชั้นแล้ว **ไม่มีอะไรพัง** — เสาร์เช้าข่าวเข้ามา 3 ชิ้นและถูกกรองออกถูกต้องหมด
+//    แต่หน้าเว็บไม่มีทางบอกเรื่องนี้ได้เลย ผู้ใช้จึงต้องไปไล่ log GitHub Actions เอง
+//
+// 👉 ป้ายนี้แยก 2 คำถามที่คนละเรื่องกันออกจากกัน
+//      "ข้อมูลล่าสุด"   = ข่าวใหม่ล่าสุดเข้ามาเมื่อไร   → นิ่งได้ ถ้าไม่มีข่าวก็ถูกแล้ว
+//      "ตรวจสอบล่าสุด"  = ระบบไปดูชีตครั้งล่าสุดเมื่อไร → ถ้านิ่ง แปลว่ามีอะไรผิดจริง
+//
+// 🔇 กันเตือนมั่ว: เตือนเมื่อ "ไม่ได้ตรวจ" เกิน 3 ชั่วโมงเท่านั้น
+//    hourlyScanJob ตั้ง everyHours(1) คือรันตลอด 24 ชม. (ไม่ได้หยุดกลางคืน)
+//    ค่า 3 จึงเท่ากับ "พลาดติดกัน 3 รอบ" ซึ่งตรงกับเกณฑ์ที่ pushWebsiteUpdate_ ใช้เตือนอยู่แล้ว
+//    ⚠️ ถ้าวันใดเปลี่ยน hourlyScanJob ไปหยุดกลางคืน ต้องมาแก้ค่านี้ด้วย ไม่งั้นจะเตือนทุกคืน
+// ============================================================
+var HEARTBEAT_STALE_HOURS = 3;
+
+async function showHeartbeat() {
+  var el = document.getElementById('lastChecked');
+  if (!el) return;
+  try {
+    var res = await fetch('data/heartbeat.json', { cache: 'no-store' });
+    // ⚠️ ไม่มีไฟล์ = ยังไม่ได้ติดตั้ง S20 หรือรอบแรกยังไม่รัน → ซ่อนบรรทัดนี้เงียบ ๆ
+    //    ห้ามขึ้นข้อความชวนตกใจ เพราะมันไม่ใช่อาการพัง
+    if (!res.ok) return;
+    var hb = await res.json();
+    var t = new Date(hb.checkedAt);
+    if (isNaN(t.getTime())) return;
+
+    var lagH = (Date.now() - t.getTime()) / 3600000;
+    var when = formatThaiDate(t) + ' ' +
+      t.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
+    var what = hb.result === 'updated' ? 'มีข่าวใหม่เข้ามา' : 'ไม่มีข่าวใหม่';
+
+    if (lagH > HEARTBEAT_STALE_HOURS) {
+      // ⚠️ ใช้สัญลักษณ์ + ตัวหนาแทนการใส่สีใหม่ เพราะไม่อยากแตะ style.css
+      //    (ตัวหนาอ่านออกทั้งโหมดมืดและสว่าง ไม่ต้องเดาว่าสีไหนคอนทราสต์พอ)
+      el.innerHTML = '⚠️ <strong>ไม่ได้ตรวจสอบมา ' + lagH.toFixed(1) + ' ชั่วโมง</strong> — ' +
+        'ตรวจครั้งล่าสุด ' + escapeHtml(when) + ' (ปกติตรวจทุกชั่วโมง)';
+    } else {
+      el.textContent = 'ตรวจสอบล่าสุด: ' + when + ' — ' + what;
+    }
+    el.hidden = false;
+  } catch (err) {
+    // ⚠️ ป้ายบรรทัดที่สองพัง ต้องไม่ทำให้หน้าเว็บพัง — แค่ไม่โชว์
+    console.warn('อ่าน heartbeat.json ไม่ได้ (ไม่กระทบรายการข่าว):', err);
+  }
+}
+
 async function loadData() {
   try {
     var res = await fetch('data/news.json', { cache: 'no-store' });
@@ -180,6 +230,11 @@ async function loadData() {
     } else {
       updatedEl.textContent = 'ยังไม่มีข้อมูล (รอรอบอัปเดตแรกจาก GitHub Actions)';
     }
+
+    // ⭐ S20 (8 ส.ค. 69) — บอกผู้ใช้ว่า "ระบบยังตรวจอยู่นะ" แม้ข้อมูลจะไม่ขยับ
+    //    ต้องเรียกหลังป้าย "ข้อมูลล่าสุด" ตั้งค่าเสร็จ และห้ามให้มัน throw ออกมา
+    //    (ของหลักคือรายการข่าว ห้ามให้ป้ายบรรทัดที่สองทำให้ทั้งหน้าโหลดไม่ขึ้น)
+    showHeartbeat();
 
     setupMultiselect('category', 'categoryMultiselect', 'categoryToggle', 'categoryPanel', 'ทุกหมวด');
     setupMultiselect('source', 'sourceMultiselect', 'sourceToggle', 'sourcePanel', 'ทุกสำนักข่าว');
