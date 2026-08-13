@@ -718,7 +718,6 @@ document.getElementById('tabListBtn').addEventListener('click', function () { sw
 document.getElementById('tabChartsBtn').addEventListener('click', function () { switchTab('charts'); });
 document.getElementById('tabCyclesBtn').addEventListener('click', function () {
   switchTab('cycles');
-  // ใส่ #cycles ให้ URL เพื่อให้ปุ่ม "กลับ" จากหน้ารายงานเด้งมาที่แท็บนี้ได้
   if (history.replaceState) history.replaceState(null, '', '#cycles');
 });
 
@@ -760,7 +759,7 @@ function cycTypeLabel(t) {
   return 'รายงาน';
 }
 
-/** ป้ายเพิ่ม/ลด — ใช้ลูกศรด้วยเสมอ ไม่พึ่งสีอย่างเดียว (§ ความเข้าถึงได้) */
+/** ป้ายเพิ่ม/ลด — ใช้ลูกศรด้วยเสมอ ไม่พึ่งสีอย่างเดียว */
 function cycDelta(n, unit, invert) {
   if (n === null || n === undefined || n === 0 || isNaN(n)) return '';
   var up = n > 0;
@@ -813,8 +812,11 @@ function renderCycles() {
       return '<div class="cyc-card">' + body +
         '<p class="cyc-open cyc-err">⚠️ ลิงก์รายงานไม่ถูกต้อง — เปิดไม่ได้</p></div>';
     }
-    return '<a class="cyc-card" href="' + escapeAttr(href) + '">' + body +
-      '<p class="cyc-open">อ่านฉบับเต็ม →</p></a>';
+    // ⭐ 13 ส.ค. 69 — เปิดแท็บใหม่ตามคำสั่งเจ้าของระบบ (แดชบอร์ดยังค้างอยู่ ไม่เสียตัวกรองที่ตั้งไว้)
+    //    rel="noopener" จำเป็นเสมอเมื่อใช้ target=_blank — กันหน้าที่เปิดใหม่เข้าถึง window.opener
+    //    บอกผู้ใช้ด้วยข้อความ "เปิดแท็บใหม่" ไม่ใช่ให้เดาเอง (ผู้ใช้ที่กดแล้วแท็บเด้งโดยไม่รู้ตัวจะสับสน)
+    return '<a class="cyc-card" href="' + escapeAttr(href) + '" target="_blank" rel="noopener">' + body +
+      '<p class="cyc-open">อ่านฉบับเต็ม <span class="cyc-nt">↗ เปิดแท็บใหม่</span></p></a>';
   }).join('');
 }
 
@@ -824,6 +826,7 @@ function renderCycles() {
  * ทำไมไม่ใช้ safeUrl() ที่มีอยู่: ตัวนั้นออกแบบไว้สำหรับลิงก์ข่าวภายนอก (ยอม http/https)
  * แต่ลิงก์ในดัชนีต้องชี้เข้าไฟล์ในเว็บเราเท่านั้น การยอม https จะเปิดช่องให้ดัชนีที่ถูก
  * แก้ไข พาผู้อ่านออกไปเว็บอื่นโดยที่หน้าตายังดูเหมือนรายงานของเราทุกประการ
+ * (ยิ่งสำคัญขึ้นเมื่อเปิดแท็บใหม่ — ผู้อ่านเห็นแถบที่อยู่ของแท็บใหม่น้อยกว่าแท็บเดิม)
  */
 function safeRelUrl(u) {
   var s = String(u || '').trim();
@@ -844,7 +847,7 @@ document.querySelectorAll('.cyc-btn').forEach(function (b) {
   });
 });
 
-// เปิดหน้าด้วย #cycles (ปุ่ม "กลับ" จากหน้ารายงาน) ให้มาที่แท็บนี้เลย
+// เปิดหน้าด้วย #cycles (ปุ่ม "ปิดหน้านี้" ในรายงานถอยมาที่นี่เมื่อปิดแท็บไม่ได้)
 if (location.hash === '#cycles') switchTab('cycles');
 
 // ============================================================
