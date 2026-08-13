@@ -66,6 +66,7 @@
     <div class="tab-bar">
       <button type="button" class="tab-btn active" id="tabListBtn">📋 รายการข่าว</button>
       <button type="button" class="tab-btn" id="tabChartsBtn">📊 กราฟสรุป</button>
+      <button type="button" class="tab-btn" id="tabCyclesBtn">🗓️ สรุปข่าวตามวงรอบ</button>
     </div>
 
     <div id="listView">
@@ -138,6 +139,31 @@
         <div class="chart-canvas-wrap tall"><canvas id="trendBar"></canvas></div>
       </div>
 
+    </div>
+
+
+    <!-- ============================================================
+         🗓️ แท็บสรุปข่าวตามวงรอบ — เพิ่ม 13 ส.ค. 69 (ขั้นที่ 1)
+         หน้านี้เป็น "สารบัญ" เท่านั้น ตัวรายงานเป็นไฟล์แยกอยู่ใน reports/
+         ดัชนีอยู่ที่ data/reports.json — ขั้นที่ 2 จะให้ GitHub Action สร้างให้อัตโนมัติ
+         🔴 ห้ามฝังเนื้อรายงานลงหน้านี้ — index.html จะโตขึ้นทุกสัปดาห์ไม่มีที่สิ้นสุด
+            และผู้ที่เข้ามาดูแค่รายการข่าวก็ต้องโหลดรายงานทุกฉบับไปด้วยโดยไม่จำเป็น
+         ============================================================ -->
+    <div id="cyclesView" style="display:none">
+      <p class="cycles-intro">
+        รายงานสรุปตามวงรอบ จัดทำอัตโนมัติจากข่าวที่ระบบเก็บได้ — กดที่ฉบับเพื่ออ่านฉบับเต็ม
+        (อ่านได้ทั้งบนมือถือและคอมพิวเตอร์ · ในหน้ารายงานมีปุ่มบันทึกเป็น PDF)
+      </p>
+
+      <div class="cycles-filter" role="group" aria-label="กรองชนิดรายงาน">
+        <button type="button" class="cyc-btn active" data-cyctype="all">ทั้งหมด</button>
+        <button type="button" class="cyc-btn" data-cyctype="weekly">รายสัปดาห์</button>
+        <button type="button" class="cyc-btn" data-cyctype="monthly">รายเดือน</button>
+      </div>
+
+      <section id="cyclesGrid" class="cycles-grid">
+        <div class="loading">กำลังโหลดรายการรายงาน...</div>
+      </section>
     </div>
 
   </main>

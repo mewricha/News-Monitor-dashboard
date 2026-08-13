@@ -681,21 +681,171 @@ document.getElementById('clearFiltersBtn').addEventListener('click', clearAllFil
 // ============================================================
 var chartsRendered = false;
 
-function switchTab(tab) {
-  var isList = tab === 'list';
-  document.getElementById('listView').style.display = isList ? '' : 'none';
-  document.getElementById('chartsView').style.display = isList ? 'none' : '';
-  document.getElementById('tabListBtn').classList.toggle('active', isList);
-  document.getElementById('tabChartsBtn').classList.toggle('active', !isList);
+// ⭐ แก้ 13 ส.ค. 69 — เดิมเขียนแบบ "ไม่ใช่ list ก็คือ charts" (isList / !isList)
+//    พอมีแท็บที่ 3 ตรรกะแบบนั้นพังทันที จึงเปลี่ยนเป็นตารางแท็บ
+//    เพิ่มแท็บที่ 4 ในอนาคตทำได้โดยเติมบรรทัดเดียว ไม่ต้องแก้ตรรกะอีก
+var TABS = [
+  { key: 'list',   view: 'listView',   btn: 'tabListBtn' },
+  { key: 'charts', view: 'chartsView', btn: 'tabChartsBtn' },
+  { key: 'cycles', view: 'cyclesView', btn: 'tabCyclesBtn' }
+];
 
-  if (!isList && !chartsRendered) {
+function switchTab(tab) {
+  var known = false;
+  TABS.forEach(function (t) { if (t.key === tab) known = true; });
+  if (!known) tab = 'list';
+
+  TABS.forEach(function (t) {
+    var v = document.getElementById(t.view);
+    var b = document.getElementById(t.btn);
+    if (v) v.style.display = (t.key === tab) ? '' : 'none';
+    if (b) b.classList.toggle('active', t.key === tab);
+  });
+
+  // วาดกราฟครั้งแรกที่เปิดแท็บกราฟเท่านั้น (ของเดิม ไม่เปลี่ยนพฤติกรรม)
+  if (tab === 'charts' && !chartsRendered) {
     renderCharts();
     chartsRendered = true;
+  }
+  // โหลดดัชนีรายงานครั้งแรกที่เปิดแท็บวงรอบเท่านั้น — ไม่ถ่วงเวลาเปิดหน้าครั้งแรก
+  if (tab === 'cycles' && !cyclesLoaded) {
+    cyclesLoaded = true;
+    loadCycles();
   }
 }
 
 document.getElementById('tabListBtn').addEventListener('click', function () { switchTab('list'); });
 document.getElementById('tabChartsBtn').addEventListener('click', function () { switchTab('charts'); });
+document.getElementById('tabCyclesBtn').addEventListener('click', function () {
+  switchTab('cycles');
+  // ใส่ #cycles ให้ URL เพื่อให้ปุ่ม "กลับ" จากหน้ารายงานเด้งมาที่แท็บนี้ได้
+  if (history.replaceState) history.replaceState(null, '', '#cycles');
+});
+
+// ============================================================
+// 🗓️ แท็บสรุปข่าวตามวงรอบ — เพิ่ม 13 ส.ค. 69 (ขั้นที่ 1)
+//
+// อ่าน data/reports.json (ดัชนี) แล้ววาดการ์ดลิงก์ไปหน้ารายงานในโฟลเดอร์ reports/
+// 🔴 ดัชนีต้องเล็กเสมอ — ห้ามเอาเนื้อรายงานมาใส่ (เหตุผลอยู่ในหมายเหตุ index.html)
+// ⚠️ ค่าทุกตัวผ่าน escapeHtml/escapeAttr ตามกฎ R11 แม้ตอนนี้ไฟล์จะมาจากเว็บเราเอง
+//    เพราะขั้นที่ 2 ดัชนีจะถูกสร้างจากข้อมูลในชีต = กลายเป็นค่าจากภายนอกทันที
+// ============================================================
+var cyclesLoaded = false;
+var cyclesData = [];
+var cyclesType = 'all';
+
+async function loadCycles() {
+  var grid = document.getElementById('cyclesGrid');
+  try {
+    var res = await fetch('data/reports.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var json = await res.json();
+    cyclesData = (json && json.reports) ? json.reports : [];
+    renderCycles();
+  } catch (err) {
+    // ⚠️ แยก 2 กรณีให้ชัด — "ยังไม่มีไฟล์ดัชนี" ไม่ใช่ความผิดพลาด แต่ "โหลดแล้วพัง" คือ
+    //    ถ้ากลบรวมกันหมด วันที่ไฟล์เสียจริงเราจะไม่มีทางรู้เลย
+    var notFound = /HTTP 404/.test(String(err && err.message));
+    grid.innerHTML = notFound
+      ? '<div class="empty">ยังไม่มีรายงานในระบบ' +
+        '<br><span class="empty-sub">รายงานฉบับแรกจะปรากฏที่นี่เมื่อระบบจัดทำเสร็จ</span></div>'
+      : '<div class="empty">โหลดรายการรายงานไม่สำเร็จ: ' + escapeHtml(err && err.message) +
+        '<br><span class="empty-sub">ลองรีเฟรชหน้าอีกครั้ง — ถ้ายังไม่หายแปลว่าไฟล์ดัชนีมีปัญหา</span></div>';
+  }
+}
+
+function cycTypeLabel(t) {
+  if (t === 'weekly') return 'รายสัปดาห์';
+  if (t === 'monthly') return 'รายเดือน';
+  return 'รายงาน';
+}
+
+/** ป้ายเพิ่ม/ลด — ใช้ลูกศรด้วยเสมอ ไม่พึ่งสีอย่างเดียว (§ ความเข้าถึงได้) */
+function cycDelta(n, unit, invert) {
+  if (n === null || n === undefined || n === 0 || isNaN(n)) return '';
+  var up = n > 0;
+  var good = invert ? !up : up;   // invert = ตัวเลขที่ "ขึ้น = แย่" เช่นสัดส่วนข่าวลบ
+  return '<span class="' + (good ? 'cyc-good' : 'cyc-bad') + '">' +
+         (up ? '▲' : '▼') + Math.abs(n) + (unit || '') + '</span>';
+}
+
+function renderCycles() {
+  var grid = document.getElementById('cyclesGrid');
+  var list = cyclesData.filter(function (r) {
+    return cyclesType === 'all' || r.type === cyclesType;
+  });
+
+  // ใหม่สุดขึ้นก่อนเสมอ — เรียงตามวันสิ้นสุดวงรอบ (รูปแบบ YYYY-MM-DD เทียบสตริงได้ตรง)
+  list.sort(function (a, b) { return String(b.to).localeCompare(String(a.to)); });
+
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty">ยังไม่มีรายงานชนิดนี้</div>';
+    return;
+  }
+
+  grid.innerHTML = list.map(function (r) {
+    var st = r.stats || {};
+    var href = safeRelUrl(r.url);
+    var mock = r.isMockup ? '<span class="badge cyc-mock">ตัวอย่าง</span>' : '';
+    var hi = (r.highlights || []).slice(0, 3).map(function (x) {
+      return '<li>' + escapeHtml(x) + '</li>';
+    }).join('');
+
+    var body =
+      '<div class="cyc-head">' +
+        '<span class="badge">' + escapeHtml(cycTypeLabel(r.type)) + '</span>' +
+        (r.no ? '<span class="badge">ฉบับที่ ' + escapeHtml(String(r.no)) + '</span>' : '') +
+        mock +
+      '</div>' +
+      '<p class="cyc-period">' + escapeHtml(r.periodLabel || '') + '</p>' +
+      '<div class="cyc-nums">' +
+        '<div><span class="n">' + escapeHtml(String(st.news != null ? st.news : '-')) + '</span>' +
+          '<span class="l">ข่าว ' + cycDelta(st.newsDelta, '') + '</span></div>' +
+        '<div><span class="n">' + escapeHtml(String(st.topics != null ? st.topics : '-')) + '</span>' +
+          '<span class="l">ประเด็น</span></div>' +
+        '<div><span class="n neg">' + escapeHtml(String(st.neg != null ? st.neg : '-')) + '</span>' +
+          '<span class="l">ข่าวลบ ' + cycDelta(st.negPctDelta, '%', true) + '</span></div>' +
+      '</div>' +
+      (r.topCat ? '<p class="cyc-top">หมวดที่ข่าวลบมากที่สุด · ' + escapeHtml(r.topCat) + '</p>' : '') +
+      (hi ? '<p class="cyc-hl-l">ประเด็นเด่น</p><ul class="cyc-hl">' + hi + '</ul>' : '');
+
+    if (!href) {
+      return '<div class="cyc-card">' + body +
+        '<p class="cyc-open cyc-err">⚠️ ลิงก์รายงานไม่ถูกต้อง — เปิดไม่ได้</p></div>';
+    }
+    return '<a class="cyc-card" href="' + escapeAttr(href) + '">' + body +
+      '<p class="cyc-open">อ่านฉบับเต็ม →</p></a>';
+  }).join('');
+}
+
+/**
+ * ตรวจลิงก์ในดัชนี — ยอมเฉพาะ path สัมพัทธ์ภายในเว็บเราเอง
+ *
+ * ทำไมไม่ใช้ safeUrl() ที่มีอยู่: ตัวนั้นออกแบบไว้สำหรับลิงก์ข่าวภายนอก (ยอม http/https)
+ * แต่ลิงก์ในดัชนีต้องชี้เข้าไฟล์ในเว็บเราเท่านั้น การยอม https จะเปิดช่องให้ดัชนีที่ถูก
+ * แก้ไข พาผู้อ่านออกไปเว็บอื่นโดยที่หน้าตายังดูเหมือนรายงานของเราทุกประการ
+ */
+function safeRelUrl(u) {
+  var s = String(u || '').trim();
+  if (!s) return '';
+  if (/^[a-zA-Z][a-zA-Z0-9+.\-]*:/.test(s)) return '';   // มี scheme = ไม่ใช่ path ในเว็บเรา
+  if (s.charAt(0) === '/' || s.indexOf('//') === 0) return '';
+  if (s.indexOf('..') !== -1) return '';                   // กันไต่ออกนอกโฟลเดอร์
+  return s;
+}
+
+document.querySelectorAll('.cyc-btn').forEach(function (b) {
+  b.addEventListener('click', function () {
+    cyclesType = b.getAttribute('data-cyctype') || 'all';
+    document.querySelectorAll('.cyc-btn').forEach(function (x) {
+      x.classList.toggle('active', x === b);
+    });
+    renderCycles();
+  });
+});
+
+// เปิดหน้าด้วย #cycles (ปุ่ม "กลับ" จากหน้ารายงาน) ให้มาที่แท็บนี้เลย
+if (location.hash === '#cycles') switchTab('cycles');
 
 // ============================================================
 // ปรับขนาดตัวอักษร (ช่วยผู้ที่มีปัญหาด้านสายตา)
