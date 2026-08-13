@@ -1,0 +1,80 @@
+name: Build cycle reports
+
+# ============================================================
+# 🗓️ สร้างหน้ารายงานสรุปตามวงรอบ (รายสัปดาห์/รายเดือน)
+#
+# ทำอะไร: ดึงแท็บ "รายงานวงรอบ" จากชีตเป็น CSV → สร้าง reports/<id>.html
+#         → อัปเดตดัชนี data/reports.json → commit
+#
+# 🔴 นี่คือ workflow "คนละตัว" กับ update-data.yml โดยตั้งใจ
+#    เหตุผล: update-data.yml วิ่งทุกชั่วโมงเพื่ออัปเดตรายการข่าว ส่วนตัวนี้วิ่งสัปดาห์ละครั้ง
+#    ถ้ารวมเป็นตัวเดียวกัน รายงานสัปดาห์จะถูกสร้างใหม่ทุกชั่วโมงโดยไม่จำเป็น
+#    และถ้าตัวใดตัวหนึ่งพัง จะลากอีกตัวล้มไปด้วย
+#
+# ใครสั่ง: Apps Script `weeklyReportJob` (จันทร์ 07:00) ยิง workflow_dispatch มา
+#         — วิธีเดียวกับที่ pushWebsiteUpdate_ สั่ง update-data.yml อยู่แล้ว
+#         จึงใช้ GITHUB_TOKEN ตัวเดิม ไม่ต้องออก token ใหม่และไม่ต้องเพิ่มสิทธิ์
+#
+# 🔴 ไม่มี schedule (cron) โดยตั้งใจ — เหตุผลเดียวกับ update-data.yml:
+#    ถ้า Apps Script ตาย ชีตก็ไม่มีรายงานใหม่ให้ดึงอยู่ดี cron จึงไม่ช่วยอะไร
+#    มีแต่จะ "ปิดบังอาการ" ว่าระบบยังเดินอยู่ทั้งที่ต้นทางหยุดไปแล้ว
+#
+# กดรันเองได้: แท็บ Actions > Build cycle reports > Run workflow
+# ============================================================
+on:
+  workflow_dispatch:
+    inputs:
+      allow_shrink:
+        description: 'ยอมให้ดัชนีรายงานมีจำนวนลดลง (ใช้เมื่อจงใจถอนรายงานออกจากดัชนีเอง)'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: write
+
+# กันรอบซ้อนกัน — 2 รอบพร้อมกัน = git push ชนกัน รอบหลังล้มด้วย non-fast-forward
+concurrency:
+  group: build-cycle-reports
+  cancel-in-progress: false
+
+jobs:
+  build-cycle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build cycle report pages
+        run: node scripts/build-cycle.js
+        env:
+          # ⚠️ ต้องตั้ง secret ชื่อ CYCLE_CSV_URL ก่อนใช้งานจริง
+          #    = ลิงก์ Publish to web (CSV) ของแท็บ "รายงานวงรอบ" เท่านั้น
+          #    ห้ามใช้ลิงก์ของทั้งไฟล์ — จะได้แท็บแรก (รายการข่าว) มาแทน แล้วสคริปต์จะหยุดเพราะ JSON พัง
+          CYCLE_CSV_URL: ${{ secrets.CYCLE_CSV_URL }}
+          ALLOW_SHRINK: ${{ inputs.allow_shrink }}
+
+      # ⚠️ ต้อง add ทั้ง reports/ และ data/reports.json
+      #    ถ้า add แค่ data/ ดัชนีจะชี้ไปหน้าที่ยังไม่ถูก commit → ผู้อ่านกดแล้วเจอ 404
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reports data/reports.json
+          if git diff --staged --quiet; then
+            echo "⏸️ ไม่มีรายงานใหม่หรือเนื้อหาไม่เปลี่ยน — ไม่ commit"
+            echo "⏸️ ไม่มีรายงานใหม่หรือเนื้อหาไม่เปลี่ยน — ไม่มี commit ในรอบนี้" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git commit -m "สร้างรายงานสรุปตามวงรอบอัตโนมัติ [skip ci]"
+          git pull --rebase --autostash origin "$GITHUB_REF_NAME"
+          git push
+          echo "✅ อัปเดตรายงานสรุปตามวงรอบแล้ว" >> "$GITHUB_STEP_SUMMARY"
