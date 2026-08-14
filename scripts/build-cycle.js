@@ -39,6 +39,22 @@ const OUT_DIR   = path.join(ROOT, 'reports');
 const INDEX_OUT = path.join(ROOT, 'data', 'reports.json');
 const READY     = 'พร้อมเผยแพร่';        // ค่าที่ต้องอยู่ในคอลัมน์ F ของชีตจึงจะถูกสร้าง
 
+// ═════════════════════════════════════════════════════════════════
+// 🔗 การ์ดตัวอย่างลิงก์ (Open Graph) — เพิ่ม 14 ส.ค. 69
+//
+// ทำไมต้องมี: ข้อความเช้าใน LINE มี URL ยาว ๆ ตัวเดียวโดด ๆ ดูไม่น่ากด
+//   ถ้าหน้ามีแท็ก og: LINE จะดึงไปแสดงเป็น "การ์ด" ใต้ข้อความ พร้อมชื่อและคำโปรย
+//   ⇒ ได้หน้าตาดีขึ้นมากโดยไม่ต้องแก้ข้อความเลยสักตัวอักษร
+//
+// ⚠️ ไม่การันตี 100% — LINE ต้องเข้ามาดึงหน้าให้ทัน และบางเครื่องปิดตัวอย่างลิงก์ไว้
+// 🔴 SITE_BASE ต้องเป็น URL เต็ม — og: ใช้ path สัมพัทธ์ไม่ได้ ตัวดึงข้อมูลอยู่คนละที่กับหน้า
+// 🔴 OG_IMAGE ว่าง = ไม่ใส่แท็กรูป (การ์ดจะขึ้นแต่ชื่อกับคำโปรย ซึ่งยังดีกว่า URL เปล่า)
+//    ห้ามชี้ไปไฟล์ที่ไม่มีจริง — LINE จะขึ้นการ์ดที่มีกรอบรูปว่าง ดูแย่กว่าไม่ใส่
+// ═════════════════════════════════════════════════════════════════
+const SITE_BASE = 'https://mewricha.github.io/News-Monitor-dashboard/';
+const OG_IMAGE  = 'assets/og-cover.png';   // 🔴 ต้องมีไฟล์นี้อยู่จริงใน repo ไม่งั้น LINE จะขึ้นการ์ดกรอบรูปว่าง
+const OG_W      = 1200, OG_H = 630;
+
 // ─────────────────────────────────────────────────────────────────
 // สีของกราฟ — ทุกตัวเป็นชื่อตัวแปร CSS ไม่ใช่รหัสสีดิบ
 // เพราะหน้ารายงานสลับโหมดมืด/สว่างได้ ถ้าฝังรหัสสีลง SVG ตัวหนังสือในกราฟ
@@ -71,6 +87,47 @@ function deltaColor(n, invert) {
   return good ? C.pine : C.rust;
 }
 
+
+/**
+ * แท็ก Open Graph + Twitter — ใช้ร่วมกันทั้งรายวันและรายสัปดาห์
+ *
+ * คำโปรยต้องเป็น "ตัวเลขที่ตัดสินใจได้" ไม่ใช่คำโฆษณา
+ * คนอ่านการ์ดใน LINE ควรรู้ตั้งแต่ยังไม่กดว่าเช้านี้ต้องเปิดอ่านไหม
+ */
+function ogTags(d) {
+  const S = d.stats || {};
+  const isDaily = d.type === 'daily';
+  const title = cycleLabel(d.type) + ' · ' + (d.cardPeriod || d.periodLabel || '');
+
+  const bits = [];
+  if (S.news != null) bits.push('ข่าว ' + S.news);
+  if (S.topics != null) bits.push('ประเด็น ' + S.topics);
+  if (S.neg != null) bits.push('ข่าวลบ ' + S.neg + (S.negPct != null ? ' (' + S.negPct + '%)' : ''));
+  if (isDaily && S.watchCount != null) {
+    bits.push(S.watchCount ? 'ต้องเฝ้าติดตาม ' + S.watchCount + ' ประเด็น' : 'ไม่มีประเด็นต้องเฝ้าติดตาม');
+  }
+  const desc = (d.isMockup ? '[ฉบับตัวอย่าง] ' : '') + bits.join(' · ');
+
+  const url = SITE_BASE + 'reports/' + d.id + '.html';
+  let t =
+    `<meta property="og:type" content="article">` +
+    `<meta property="og:site_name" content="ระบบติดตามข่าวสารกองทัพบก">` +
+    `<meta property="og:locale" content="th_TH">` +
+    `<meta property="og:title" content="${esc(title)}">` +
+    `<meta property="og:description" content="${esc(desc)}">` +
+    `<meta property="og:url" content="${esc(url)}">` +
+    `<meta name="description" content="${esc(desc)}">`;
+  if (OG_IMAGE) {
+    t += `<meta property="og:image" content="${esc(SITE_BASE + OG_IMAGE)}">` +
+         `<meta property="og:image:width" content="${OG_W}">` +
+         `<meta property="og:image:height" content="${OG_H}">` +
+         `<meta name="twitter:card" content="summary_large_image">`;
+  } else {
+    // ไม่มีรูป = การ์ดแบบย่อ ยังขึ้นชื่อกับคำโปรย ดีกว่าปล่อยเป็น URL เปล่า
+    t += `<meta name="twitter:card" content="summary">`;
+  }
+  return t;
+}
 
 // ═════════════════════════════════════════════════════════════════
 // กราฟ — ทุกตัวสร้าง 2 ร่าง: จอกว้าง/พิมพ์ (desk) กับมือถือ (mob)
@@ -531,6 +588,7 @@ function renderDaily(d) {
   return `<!doctype html><html lang="th"><head><meta charset="utf-8">` +
     `<title>${esc(d.title)} · ${esc(d.cardPeriod || d.periodLabel)}</title>` +
     `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+    ogTags(d) +
     TPL_BOOT + `<style>${TPL_STYLE}${TPL_STYLE_DAILY}</style></head><body>
 
 <div class="toolbar"><button type="button" class="tb tb-close" onclick="closeThisPage()">✕ ปิดหน้านี้</button><button type="button" class="tb tb-theme" id="themeBtn" onclick="toggleTheme()"></button><button type="button" class="tb tb-pdf" onclick="window.print()">🖨️ บันทึกเป็น PDF</button></div>${mock}
@@ -636,6 +694,7 @@ function renderReport(d) {
   return `<!doctype html><html lang="th"><head><meta charset="utf-8">` +
     `<title>${esc(d.title)} · ${esc(d.cardPeriod || d.periodLabel)}</title>` +
     `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+    ogTags(d) +
     TPL_BOOT + `<style>${TPL_STYLE}</style></head><body>
 
 <div class="toolbar"><button type="button" class="tb tb-close" onclick="closeThisPage()">✕ ปิดหน้านี้</button><button type="button" class="tb tb-theme" id="themeBtn" onclick="toggleTheme()"></button><button type="button" class="tb tb-pdf" onclick="window.print()">🖨️ บันทึกเป็น PDF</button></div>${mock}
