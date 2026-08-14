@@ -776,7 +776,10 @@ async function readFromSheet(url) {
     const status = String(r[5] || '').trim();
     if (status !== READY) return;            // ยังเป็นร่าง = ยังไม่เอา
     try {
-      const payload = JSON.parse(r[6]);
+      // 📦 JSON อาจถูกแตกเก็บหลายเซลล์ (G, H, I, …) เพราะเซลล์ชีตรับได้ 50,000 ตัวอักษร
+      //    ต่อกลับตามลำดับคอลัมน์ — แถวเก่าที่มีเซลล์เดียว join แล้วได้ค่าเดิมเป๊ะ
+      //    🔴 ต้องวางฝั่งนี้ "ก่อน" ฝั่ง Apps Script เสมอ ไม่งั้นจะอ่านได้แค่ก้อนแรก
+      const payload = JSON.parse(r.slice(6).map(c => String(c == null ? '' : c)).join(''));
       payload.id = payload.id || String(r[0] || '').trim();
       payload.type = payload.type || String(r[1] || '').trim();
       payload.from = payload.from || String(r[2] || '').trim();
