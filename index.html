@@ -157,13 +157,24 @@
 
       <div class="cycles-filter" role="group" aria-label="กรองชนิดรายงาน">
         <button type="button" class="cyc-btn active" data-cyctype="all">ทั้งหมด</button>
+        <button type="button" class="cyc-btn" data-cyctype="daily">รายวัน</button>
         <button type="button" class="cyc-btn" data-cyctype="weekly">รายสัปดาห์</button>
         <button type="button" class="cyc-btn" data-cyctype="monthly">รายเดือน</button>
       </div>
 
+      <p id="cyclesCount" class="cycles-count" aria-live="polite"></p>
+
       <section id="cyclesGrid" class="cycles-grid">
         <div class="loading">กำลังโหลดรายการรายงาน...</div>
       </section>
+
+      <!-- ⭐ 14 ส.ค. 69 — ปุ่มดูเพิ่ม
+           เหตุผล: รายงานรายวันเพิ่มปีละ ~365 ฉบับ ถ้าวาดทั้งหมดทีเดียว
+           หน้าจะยาวจนเลื่อนหาไม่เจอ และมือถือรุ่นเก่าจะกระตุก
+           🔴 ไม่ตัดข้อมูลทิ้ง — แค่ยังไม่วาด กด "ดูเพิ่ม" แล้วขึ้นครบเสมอ -->
+      <div class="cycles-more-wrap">
+        <button type="button" id="cyclesMoreBtn" class="cyc-more" style="display:none"></button>
+      </div>
     </div>
 
   </main>

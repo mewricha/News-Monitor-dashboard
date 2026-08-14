@@ -732,6 +732,10 @@ document.getElementById('tabCyclesBtn').addEventListener('click', function () {
 var cyclesLoaded = false;
 var cyclesData = [];
 var cyclesType = 'all';
+// ⭐ 14 ส.ค. 69 — แบ่งหน้า: รายงานรายวันเพิ่มปีละ ~365 ฉบับ
+//    วาดทีละ CYC_PAGE ใบ ที่เหลือรอปุ่ม "ดูเพิ่ม" (ข้อมูลอยู่ครบเสมอ ไม่ได้ตัดทิ้ง)
+var CYC_PAGE = 20;
+var cyclesShown = CYC_PAGE;
 
 async function loadCycles() {
   var grid = document.getElementById('cyclesGrid');
@@ -754,6 +758,7 @@ async function loadCycles() {
 }
 
 function cycTypeLabel(t) {
+  if (t === 'daily') return 'รายวัน';
   if (t === 'weekly') return 'รายสัปดาห์';
   if (t === 'monthly') return 'รายเดือน';
   return 'รายงาน';
@@ -770,29 +775,62 @@ function cycDelta(n, unit, invert) {
 
 function renderCycles() {
   var grid = document.getElementById('cyclesGrid');
+  var moreBtn = document.getElementById('cyclesMoreBtn');
+  var countEl = document.getElementById('cyclesCount');
   var list = cyclesData.filter(function (r) {
     return cyclesType === 'all' || r.type === cyclesType;
   });
 
   // ใหม่สุดขึ้นก่อนเสมอ — เรียงตามวันสิ้นสุดวงรอบ (รูปแบบ YYYY-MM-DD เทียบสตริงได้ตรง)
-  list.sort(function (a, b) { return String(b.to).localeCompare(String(a.to)); });
+  // เสมอกัน (รายวันกับรายสัปดาห์จบวันเดียวกันได้) → เอารายสัปดาห์ขึ้นก่อน เพราะครอบคลุมกว่า
+  var ORDER = { monthly: 0, weekly: 1, daily: 2 };
+  list.sort(function (a, b) {
+    return String(b.to).localeCompare(String(a.to)) ||
+           ((ORDER[a.type] == null ? 9 : ORDER[a.type]) - (ORDER[b.type] == null ? 9 : ORDER[b.type]));
+  });
 
   if (!list.length) {
     grid.innerHTML = '<div class="empty">ยังไม่มีรายงานชนิดนี้</div>';
+    if (moreBtn) moreBtn.style.display = 'none';
+    if (countEl) countEl.textContent = '';
     return;
   }
 
-  grid.innerHTML = list.map(function (r) {
+  var page = list.slice(0, cyclesShown);
+
+  // 🔴 บอกจำนวนที่ "ยังไม่ได้วาด" ให้ชัด — ผู้อ่านต้องไม่เข้าใจผิดว่ารายงานเก่าหายไป
+  if (countEl) {
+    countEl.textContent = page.length < list.length
+      ? 'แสดง ' + page.length + ' จาก ' + list.length + ' ฉบับ (ฉบับเก่ากว่านี้ยังอยู่ครบ กด "ดูเพิ่ม" ด้านล่าง)'
+      : 'ทั้งหมด ' + list.length + ' ฉบับ';
+  }
+  if (moreBtn) {
+    if (page.length < list.length) {
+      var rest = list.length - page.length;
+      moreBtn.textContent = 'ดูเพิ่มอีก ' + Math.min(CYC_PAGE, rest) + ' ฉบับ (เหลือ ' + rest + ')';
+      moreBtn.style.display = '';
+    } else {
+      moreBtn.style.display = 'none';
+    }
+  }
+
+  grid.innerHTML = page.map(function (r) {
     var st = r.stats || {};
     var href = safeRelUrl(r.url);
+    var isDaily = r.type === 'daily';
     var mock = r.isMockup ? '<span class="badge cyc-mock">ตัวอย่าง</span>' : '';
     var hi = (r.highlights || []).slice(0, 3).map(function (x) {
       return '<li>' + escapeHtml(x) + '</li>';
     }).join('');
 
+    // ☀️ การ์ดรายวันมีช่องที่ 4 = จำนวนประเด็นที่ต้องเฝ้า ซึ่งเป็นตัวเลขที่คนอ่านตอนเช้าสนใจที่สุด
+    var wc = (st.watchCount != null)
+      ? '<div><span class="n' + (st.watchCount > 0 ? ' warn' : '') + '">' +
+        escapeHtml(String(st.watchCount)) + '</span><span class="l">เฝ้าติดตาม</span></div>' : '';
+
     var body =
       '<div class="cyc-head">' +
-        '<span class="badge">' + escapeHtml(cycTypeLabel(r.type)) + '</span>' +
+        '<span class="badge' + (isDaily ? ' cyc-d' : '') + '">' + escapeHtml(cycTypeLabel(r.type)) + '</span>' +
         (r.no ? '<span class="badge">ฉบับที่ ' + escapeHtml(String(r.no)) + '</span>' : '') +
         mock +
       '</div>' +
@@ -804,9 +842,11 @@ function renderCycles() {
           '<span class="l">ประเด็น</span></div>' +
         '<div><span class="n neg">' + escapeHtml(String(st.neg != null ? st.neg : '-')) + '</span>' +
           '<span class="l">ข่าวลบ ' + cycDelta(st.negPctDelta, '%', true) + '</span></div>' +
+        wc +
       '</div>' +
       (r.topCat ? '<p class="cyc-top">หมวดที่ข่าวลบมากที่สุด · ' + escapeHtml(r.topCat) + '</p>' : '') +
-      (hi ? '<p class="cyc-hl-l">ประเด็นเด่น</p><ul class="cyc-hl">' + hi + '</ul>' : '');
+      (hi ? '<p class="cyc-hl-l">' + (isDaily ? 'ประเด็นที่ต้องเฝ้าติดตาม' : 'ประเด็นเด่น') +
+            '</p><ul class="cyc-hl">' + hi + '</ul>' : '');
 
     if (!href) {
       return '<div class="cyc-card">' + body +
@@ -840,12 +880,26 @@ function safeRelUrl(u) {
 document.querySelectorAll('.cyc-btn').forEach(function (b) {
   b.addEventListener('click', function () {
     cyclesType = b.getAttribute('data-cyctype') || 'all';
+    cyclesShown = CYC_PAGE;          // 🔴 เปลี่ยนตัวกรอง = เริ่มนับหน้าใหม่ ไม่งั้นจะค้างที่จำนวนของชนิดก่อน
     document.querySelectorAll('.cyc-btn').forEach(function (x) {
       x.classList.toggle('active', x === b);
     });
     renderCycles();
   });
 });
+
+(function () {
+  var mb = document.getElementById('cyclesMoreBtn');
+  if (!mb) return;
+  mb.addEventListener('click', function () {
+    cyclesShown += CYC_PAGE;
+    renderCycles();
+    // เลื่อนไปที่ใบแรกของชุดใหม่ ไม่ให้ผู้อ่านหลงว่ากดแล้วไม่มีอะไรเกิดขึ้น
+    var cards = document.querySelectorAll('#cyclesGrid .cyc-card');
+    var target = cards[Math.max(0, cyclesShown - CYC_PAGE)];
+    if (target && target.scrollIntoView) target.scrollIntoView({ block: 'center' });
+  });
+})();
 
 // เปิดหน้าด้วย #cycles (ปุ่ม "ปิดหน้านี้" ในรายงานถอยมาที่นี่เมื่อปิดแท็บไม่ได้)
 if (location.hash === '#cycles') switchTab('cycles');

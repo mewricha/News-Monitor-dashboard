@@ -839,4 +839,25 @@ a.cyc-card:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px;
 /* ป้าย "เปิดแท็บใหม่" — บอกล่วงหน้าว่าจะเกิดอะไรขึ้น ไม่ให้ผู้ใช้ตกใจ */
 .cyc-nt { font-weight: 400; color: var(--text-secondary); }
 
+/* ═══ รายงานประจำวัน + แบ่งหน้า (เพิ่ม 14 ส.ค. 69 · รุ่น -64) ═══ */
+
+/* ป้ายชนิด "รายวัน" — ต้องแยกออกจากรายสัปดาห์ด้วยตาเปล่าในแวบเดียว
+   เพราะบนแท็บ "ทั้งหมด" ทั้งสองชนิดจะเรียงปนกัน */
+.badge.cyc-d { background: var(--surface-hover); border-color: var(--border-strong); }
+
+/* จำนวนประเด็นที่ต้องเฝ้า — ใช้สีเตือนเหมือนข่าวลบ
+   🔴 สีเป็นแค่ตัวช่วย ป้ายกำกับ "เฝ้าติดตาม" ใต้ตัวเลขคือสิ่งที่บอกความหมายจริง */
+.cyc-nums .n.warn { color: var(--neg); }
+
+.cycles-count { font-size: var(--fs-sm); line-height: var(--lh-ui); color: var(--text-2); margin: 0 0 10px; }
+
+.cycles-more-wrap { display: flex; justify-content: center; margin: 16px 0 4px; }
+.cyc-more {
+  padding: 11px 26px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--accent);
+  font-family: inherit; font-size: var(--fs-body); font-weight: 600; cursor: pointer;
+}
+.cyc-more:hover { background: var(--surface-hover); }
+.cyc-more:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+
 .empty-sub { font-size: var(--fs-sm); color: var(--text-2); }
