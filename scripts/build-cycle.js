@@ -205,19 +205,91 @@ function chartOutlets(outlets) {
 }
 
 
+/**
+ * ④ แนวโน้มปริมาณข่าวย้อนหลัง 14 วัน (ใช้เฉพาะรายงานประจำวัน)
+ *
+ * ทำไมไม่ใช้ chartDaily ตัวเดิม: ตัวนั้นออกแบบสำหรับ 7 แท่ง (แท่งกว้าง 72px)
+ * ใส่ 14 แท่งแล้วแท่งจะซ้อนทับกัน — ตัวนี้จึงคุมความกว้างตามจำนวนวันจริง
+ *
+ * หลักการอ่าน: เส้นประ = ค่าเฉลี่ยของช่วง · แท่งขวาสุด = เมื่อวาน (วันที่รายงานนี้พูดถึง)
+ * ป้ายตัวเลขติดเฉพาะ "วันที่มากที่สุด" กับ "เมื่อวาน" เท่านั้น — ติดทุกแท่งจะอ่านไม่ออก
+ */
+function chartTrend(trend) {
+  const T = (trend || []).slice(-14);
+  if (!T.length) return { desk: '', mob: '' };
+  const max = Math.max(...T.map(d => d.total), 1);
+  const avg = T.reduce((a, b) => a + b.total, 0) / T.length;
+  const maxIdx = T.reduce((bi, d, i) => (d.total > T[bi].total ? i : bi), 0);
+  const lastIdx = T.length - 1;
+
+  function draw(W, H, base, top, x0, x1, bw, fsLab, fsVal, showDow) {
+    const SC = (base - top) / max, p = [];
+    for (let g = 0; g <= 4; g++) {
+      const yy = base - (max / 4 * g) * SC;
+      p.push(`<line x1="${x0 - 8}" y1="${yy.toFixed(1)}" x2="${x1}" y2="${yy.toFixed(1)}" stroke="${C.grid}" stroke-width="1"/>`);
+      p.push(`<text x="${x0 - 12}" y="${(yy + 4).toFixed(1)}" font-size="${fsLab}" fill="${C.ink4}" text-anchor="end">${Math.round(max / 4 * g)}</text>`);
+    }
+    const step = (x1 - x0) / T.length;
+    T.forEach((d, i) => {
+      const x = x0 + i * step + (step - bw) / 2, ok = d.total - d.neg;
+      const yo = base - ok * SC, yn = yo - d.neg * SC;
+      const dim = i === lastIdx ? 1 : 0.82;                 // แท่งเมื่อวานเข้มกว่าเพื่อนเล็กน้อย
+      if (ok > 0) p.push(`<rect x="${x.toFixed(1)}" y="${yo.toFixed(1)}" width="${bw}" height="${(ok * SC).toFixed(1)}" rx="3" fill="${C.pine}" opacity="${dim}"/>`);
+      // 🔴 เว้นช่อง 2px ระหว่างสีเขียวกับสีแดง ไม่งั้น 2 สีติดกันจะอ่านเป็นแท่งเดียว
+      if (d.neg > 0) p.push(`<rect x="${x.toFixed(1)}" y="${(yn - 2).toFixed(1)}" width="${bw}" height="${Math.max(d.neg * SC, 3).toFixed(1)}" rx="3" fill="${C.alert}" opacity="${dim}"/>`);
+      if (i === maxIdx || i === lastIdx) {
+        p.push(`<text x="${(x + bw / 2).toFixed(1)}" y="${(Math.min(yn, yo) - 9).toFixed(1)}" font-size="${fsVal}" font-weight="700" fill="${C.ink}" text-anchor="middle">${d.total}</text>`);
+      }
+      const parts = String(d.label).split(' ');
+      if (showDow) {
+        p.push(`<text x="${(x + bw / 2).toFixed(1)}" y="${base + 18}" font-size="${fsLab}" fill="${C.ink2}" text-anchor="middle">${esc(parts[0] || '')}</text>`);
+        p.push(`<text x="${(x + bw / 2).toFixed(1)}" y="${base + 33}" font-size="${fsLab - 1.5}" fill="${C.ink4}" text-anchor="middle">${esc(parts[1] || '')}</text>`);
+      } else if (i % 2 === lastIdx % 2) {
+        p.push(`<text x="${(x + bw / 2).toFixed(1)}" y="${base + 18}" font-size="${fsLab}" fill="${C.ink4}" text-anchor="middle">${esc(parts[1] || '')}</text>`);
+      }
+    });
+    const ya = base - avg * SC;
+    p.push(`<line x1="${x0 - 8}" y1="${ya.toFixed(1)}" x2="${x1}" y2="${ya.toFixed(1)}" stroke="${C.ink3}" stroke-width="2" stroke-dasharray="7 5"/>`);
+    // 🔴 ป้าย "เฉลี่ย" ต้องอยู่ในแถบคำอธิบายด้านล่าง ห้ามวางลอยบนเส้น
+    //    บทเรียน 14 ส.ค. 69: วางไว้ปลายเส้นแล้วมันทับเลขของแท่งขวาสุดพอดี (ค่าเฉลี่ยกับเมื่อวานมักใกล้กัน)
+    // จอกว้างวางต่อท้ายแถวเดียวกันได้ · มือถือแคบเกิน ต้องขึ้นบรรทัดใหม่ ไม่งั้นข้อความล้นขอบ
+    const wide = W > 500;
+    const ly = wide ? H - 20 : H - 38;
+    p.push(legend(x0 - 8, ly, fsLab));
+    const lx = wide ? x0 - 8 + 236 : x0 - 8;
+    const ly2 = wide ? ly + 7 : ly + 25;
+    p.push(`<line x1="${lx}" y1="${ly2}" x2="${lx + 26}" y2="${ly2}" stroke="${C.ink3}" stroke-width="2" stroke-dasharray="7 5"/>`);
+    p.push(`<text x="${lx + 32}" y="${ly2 + 5}" font-size="${fsLab}" fill="${C.ink2}">เฉลี่ย ${Math.round(avg)} ข่าว/วัน</text>`);
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="${FAM}">${p.join('')}</svg>`;
+  }
+
+  return {
+    desk: draw(760, 320, 246, 40, 44, 744, 34, 14, 16, true),
+    mob:  draw(400, 318, 232, 34, 30, 392, 18, 12.5, 14, false)
+  };
+}
+
+/**
+ * ⑤ ⏱️ แถบเวลาของประเด็นเฝ้าระวัง — ประเด็นนี้ "มีข่าวมาแล้วกี่วัน"
+ * เล็ก ๆ แต่เป็นสิ่งที่รายงานตัวอื่นในระบบไม่เคยบอก: เรื่องนี้ใหม่หรือลากมานาน
+ */
+function ageBar(age, maxAge) {
+  const n = Math.max(1, Math.min(age, 10)), m = Math.max(maxAge, n, 3);
+  const W = 120, cell = W / m, p = [];
+  for (let i = 0; i < m; i++) {
+    p.push(`<rect x="${(i * cell).toFixed(1)}" y="0" width="${(cell - 2).toFixed(1)}" height="10" rx="2" ` +
+           `fill="${i < n ? C.pine : C.grid}"/>`);
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} 10" width="${W}" height="10" ` +
+         `role="img" aria-label="มีข่าวมาแล้ว ${n} วัน">${p.join('')}</svg>`;
+}
+
 // ═════════════════════════════════════════════════════════════════
 // แม่แบบหน้ารายงาน — CSS / สคริปต์ตั้งธีม / สคริปต์ท้ายหน้า
 // ยกมาจากไฟล์ mockup ที่เจ้าของระบบอนุมัติแล้ว "ทั้งก้อนโดยไม่แก้"
 // 🔴 ถ้าจะปรับหน้าตา ให้แก้ที่นี่ที่เดียว — แล้วสร้างใหม่ทุกฉบับด้วย --all
 // ═════════════════════════════════════════════════════════════════
-const TPL_STYLE = `@font-face{font-family:'TH Sarabun New';font-style:normal;font-weight:400;font-display:swap;src:url(../fonts/sarabun-400.woff) format('woff')}@font-face{font-family:'TH Sarabun New';font-style:normal;font-weight:700;font-display:swap;src:url(../fonts/sarabun-700.woff) format('woff')}@font-face{font-family:'TH Sarabun New';font-style:italic;font-weight:400;font-display:swap;src:url(../fonts/sarabun-400i.woff) format('woff')}@font-face{font-family:'TH Sarabun New';font-style:italic;font-weight:700;font-display:swap;src:url(../fonts/sarabun-700i.woff) format('woff')} และเป็น inline — ถ้าไปตั้งธีมทีหลัง ผู้ใช้โหมดมืดจะเห็น
-   "แฟลชขาว" ทุกครั้งที่เปิดหน้า เพราะเบราว์เซอร์วาดพื้นสว่างไปแล้วก่อนสคริปต์รัน
-   ลำดับตัดสิน: ค่าที่ผู้ใช้เคยเลือก → ค่าของเครื่อง (OS) → สว่าง
-   คีย์ dashboardTheme = คีย์เดียวกับแดชบอร์ด จึงจำค่าร่วมกันทั้งเว็บ */
-(function(){var t=null;try{t=localStorage.getItem('dashboardTheme');}catch(e){t=null;}
-if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}
-document.documentElement.setAttribute('data-theme',t);})();
-</script><style>:root{--ink:#122017;--ink2:#4A5751;--ink3:#67716B;--ink4:#8B958F;--pine:#1B593C;--forest:#10402E;--alert:#F05152;--alertx:#C0392B;--rust:#A03318;--amber:#8A5A00;--amber2:#5C4A12;--yellow:#FCBA54;--surf2:#F2F6F4;--surf3:#F7FAF8;--surfw:#FDF6E8;--line:#DFE6E2;--line2:#CBD5CF;--grid:#E3E8E5;--onbanner:#B9CBC0;--mockbg:#FBEDEB;--mockink:#7B2A1D;--page:#EDF1EF;--paper:#FFFFFF;--bannerbg:#122017;--banneron:#FFFFFF;--onalert:#FFFFFF}html[data-theme="dark"]{--ink:#E8EDEA;--ink2:#B6C1BB;--ink3:#9AA6A0;--ink4:#7E8A84;--pine:#3E9E6E;--forest:#5FB88A;--alert:#FF6B6C;--alertx:#FF8B84;--rust:#FF9270;--amber:#E0A93F;--amber2:#E0C070;--yellow:#FCBA54;--surf2:#1C2621;--surf3:#18211D;--surfw:#2A2416;--line:#39443E;--line2:#39443E;--grid:#2E3833;--onbanner:#B9CBC0;--mockbg:#33201C;--mockink:#F0A79A;--page:#0D120F;--paper:#131A16;--bannerbg:#0A0E0C;--banneron:#EDF2EF;--onalert:#3A0F10}
+const TPL_STYLE = `@font-face{font-family:'TH Sarabun New';font-style:normal;font-weight:400;font-display:swap;src:url(../fonts/sarabun-400.woff) format('woff')}@font-face{font-family:'TH Sarabun New';font-style:normal;font-weight:700;font-display:swap;src:url(../fonts/sarabun-700.woff) format('woff')}@font-face{font-family:'TH Sarabun New';font-style:italic;font-weight:400;font-display:swap;src:url(../fonts/sarabun-400i.woff) format('woff')}@font-face{font-family:'TH Sarabun New';font-style:italic;font-weight:700;font-display:swap;src:url(../fonts/sarabun-700i.woff) format('woff')}:root{--ink:#122017;--ink2:#4A5751;--ink3:#67716B;--ink4:#8B958F;--pine:#1B593C;--forest:#10402E;--alert:#F05152;--alertx:#C0392B;--rust:#A03318;--amber:#8A5A00;--amber2:#5C4A12;--yellow:#FCBA54;--surf2:#F2F6F4;--surf3:#F7FAF8;--surfw:#FDF6E8;--line:#DFE6E2;--line2:#CBD5CF;--grid:#E3E8E5;--onbanner:#B9CBC0;--mockbg:#FBEDEB;--mockink:#7B2A1D;--page:#EDF1EF;--paper:#FFFFFF;--bannerbg:#122017;--banneron:#FFFFFF;--onalert:#FFFFFF}html[data-theme="dark"]{--ink:#E8EDEA;--ink2:#B6C1BB;--ink3:#9AA6A0;--ink4:#7E8A84;--pine:#3E9E6E;--forest:#5FB88A;--alert:#FF6B6C;--alertx:#FF8B84;--rust:#FF9270;--amber:#E0A93F;--amber2:#E0C070;--yellow:#FCBA54;--surf2:#1C2621;--surf3:#18211D;--surfw:#2A2416;--line:#39443E;--line2:#39443E;--grid:#2E3833;--onbanner:#B9CBC0;--mockbg:#33201C;--mockink:#F0A79A;--page:#0D120F;--paper:#131A16;--bannerbg:#0A0E0C;--banneron:#EDF2EF;--onalert:#3A0F10}
 
 
 
@@ -308,8 +380,31 @@ footer{font-size:12pt;color:var(--ink4);margin-top:26px;border-top:1px solid var
  details.apg>*{display:block!important}
 }
 @media print{html,html[data-theme="dark"]{--ink:#122017;--ink2:#4A5751;--ink3:#67716B;--ink4:#8B958F;--pine:#1B593C;--forest:#10402E;--alert:#F05152;--alertx:#C0392B;--rust:#A03318;--amber:#8A5A00;--amber2:#5C4A12;--yellow:#FCBA54;--surf2:#F2F6F4;--surf3:#F7FAF8;--surfw:#FDF6E8;--line:#DFE6E2;--line2:#CBD5CF;--grid:#E3E8E5;--onbanner:#B9CBC0;--mockbg:#FBEDEB;--mockink:#7B2A1D;--page:#EDF1EF;--paper:#FFFFFF;--bannerbg:#122017;--banneron:#FFFFFF;--onalert:#FFFFFF}}`;
+/* ═══ สไตล์เฉพาะรายงานประจำวัน (รุ่น -64) — ต่อท้าย ไม่แตะของรายสัปดาห์ ═══ */
+const TPL_STYLE_DAILY = `.wcard{background:var(--surf3);border:1px solid var(--line);border-left:5px solid var(--amber);border-radius:0 12px 12px 0;padding:12px 18px;margin:12px 0;break-inside:avoid;page-break-inside:avoid}
+.wcard.hot{border-left-color:var(--alert);background:var(--mockbg)}
+.wtop{display:flex;align-items:baseline;gap:10px}
+.wrank{flex:none;background:var(--pine);color:var(--paper);font-size:12.5pt;font-weight:700;border-radius:50%;width:26px;height:26px;line-height:26px;text-align:center}
+.wcard.hot .wrank{background:var(--alertx)}
+.wname{font-size:16.5pt;font-weight:600;line-height:1.4;margin:0}
+.wtags{margin:6px 0 2px}
+.wtag{display:inline-block;font-size:12pt;color:var(--ink2);background:var(--surf2);border:1px solid var(--line);border-radius:14px;padding:1px 11px;margin:3px 5px 0 0}
+.wtag.a{color:var(--alertx);border-color:var(--alert)}
+.wwhy{font-size:14.5pt;color:var(--ink);margin:7px 0 4px}
+.wmeta{display:flex;align-items:center;gap:9px;font-size:12pt;color:var(--ink3);margin-top:6px}
+.wmore{font-size:13pt;color:var(--ink2);margin:3px 0}
+.attn{background:var(--surf2);border:1px solid var(--line);border-radius:12px;padding:10px 18px;margin:12px 0}
+.attn .ai{font-size:14.5pt;margin:5px 0}
+.attn .an{color:var(--ink4);font-weight:700;margin-right:6px}
+.quiet{background:var(--surfw);border:1.5px dashed var(--amber);border-radius:12px;padding:10px 18px;font-size:14pt;color:var(--amber2);margin:12px 0}
+.autoflag{font-size:12pt;color:var(--ink3);margin-top:6px}
+.cmpn{font-size:13.5pt;color:var(--ink3);margin:-6px 0 12px}
+a.src{color:var(--forest);text-decoration:none;border-bottom:1px dotted var(--line2)}
+@media screen{.wname{font-size:19px}.wwhy{font-size:17px}.wtag{font-size:14px}.attn .ai{font-size:17px}.quiet{font-size:16px}.wmeta,.autoflag{font-size:14px}.cmpn{font-size:15px}.wmore{font-size:15px}}
+@media print{.wcard{background:var(--surf3)!important}}`;
+
 const TPL_BOOT  = `<script>
-/* ⚠️ ต้องอยู่ก่อน <style>@font-face{font-family:'TH Sarabun New';font-style:normal;font-weight:400;font-display:swap;src:url(../fonts/sarabun-400.woff) format('woff')}@font-face{font-family:'TH Sarabun New';font-style:normal;font-weight:700;font-display:swap;src:url(../fonts/sarabun-700.woff) format('woff')}@font-face{font-family:'TH Sarabun New';font-style:italic;font-weight:400;font-display:swap;src:url(../fonts/sarabun-400i.woff) format('woff')}@font-face{font-family:'TH Sarabun New';font-style:italic;font-weight:700;font-display:swap;src:url(../fonts/sarabun-700i.woff) format('woff')} และเป็น inline — ถ้าไปตั้งธีมทีหลัง ผู้ใช้โหมดมืดจะเห็น
+/* ⚠️ ต้องอยู่ก่อน <style> และเป็น inline — ถ้าไปตั้งธีมทีหลัง ผู้ใช้โหมดมืดจะเห็น
    "แฟลชขาว" ทุกครั้งที่เปิดหน้า เพราะเบราว์เซอร์วาดพื้นสว่างไปแล้วก่อนสคริปต์รัน
    ลำดับตัดสิน: ค่าที่ผู้ใช้เคยเลือก → ค่าของเครื่อง (OS) → สว่าง
    คีย์ dashboardTheme = คีย์เดียวกับแดชบอร์ด จึงจำค่าร่วมกันทั้งเว็บ */
@@ -355,7 +450,123 @@ addEventListener('beforeprint', function(){
 // ═════════════════════════════════════════════════════════════════
 // ประกอบหน้ารายงาน
 // ═════════════════════════════════════════════════════════════════
+/**
+ * ☀️ หน้ารายงานประจำวัน — โครงคนละแบบกับรายสัปดาห์โดยตั้งใจ
+ *
+ * รายสัปดาห์ตอบว่า "สัปดาห์ที่ผ่านมาภาพรวมเป็นอย่างไร" → เดินตามหมวด
+ * รายวันตอบว่า "เมื่อวานปิดยังไง วันนี้ต้องเฝ้าอะไร" → เดินตามประเด็นที่ยังไม่จบ
+ *
+ * 🔴 ห้ามทำให้กลายเป็นรายการข่าว — รายการข่าวมีรายงาน 3 รอบ/วันอยู่แล้ว
+ *    ถ้าหน้านี้กลายเป็นรายการ ผู้อ่านจะเลิกอ่านเพราะเห็นของซ้ำ
+ */
+function renderDaily(d) {
+  const S = d.stats || {};
+  const W = d.watch || [];
+  const trend = chartTrend(d.trend || []);
+  const catsCh = chartCats((d.cats || []).map(c => ({ name: c.name, n: c.n, neg: c.neg, delta: 0 })), '');
+
+  const fig = (ch, cap) => (!ch || !ch.desk) ? '' :
+    `<div class="figure"><div class="chart d-desk">${ch.desk}</div>` +
+    `<div class="chart d-mob">${ch.mob}</div>` +
+    `<div class="cap">${esc(cap)}</div></div>`;
+
+  const dPct = S.newsDeltaPct || 0;
+  const kpi = [
+    { n: S.news, l: 'ข่าวเมื่อวาน' + (S.avgNews != null ? ` (${arrow(dPct)}${Math.abs(dPct)}% จากค่าเฉลี่ย)` : '') },
+    { n: S.topics, l: 'ประเด็นข่าว' },
+    { n: S.neg, l: `ข่าวลบ (${S.negPct}%)`, cls: ' neg' },
+    { n: S.watchCount || 0, l: 'ประเด็นต้องเฝ้าติดตาม', cls: (S.watchCount || 0) > 0 ? ' neg' : ' up' }
+  ].map(k => `<div class="kpi${k.cls || ''}"><div class="n">${esc(k.n)}</div><div class="l">${esc(k.l)}</div></div>`).join('');
+
+  const cmp = S.avgNews != null
+    ? `<div class="cmpn">เทียบค่าเฉลี่ย ${esc(S.avgDays || 7)} วันก่อนหน้า: ${esc(S.avgNews)} ข่าว/วัน · ` +
+      `ข่าวลบ ${esc(S.avgNegPct)}% (เมื่อวาน ${esc(S.negPct)}% — ` +
+      `${(S.negPctDelta || 0) >= 0 ? 'สูงกว่า' : 'ต่ำกว่า'} ${Math.abs(S.negPctDelta || 0)} จุด)</div>` : '';
+
+  // ── ประเด็นเฝ้าระวัง = หัวใจของฉบับ ──
+  const maxAge = W.reduce((m, w) => Math.max(m, w.age || 1), 1);
+  const watchHtml = W.length ? W.map((w, i) => {
+    const hot = (w.neg || 0) > 0;
+    const tags = (w.tags || []).map(t =>
+      `<span class="wtag${/ลบ|🔴|ผลกระทบสูง/.test(t) ? ' a' : ''}">${esc(t)}</span>`).join('');
+    const why = w.why ? `<p class="wwhy">${esc(w.why)}</p>` : '';
+    const link = w.url ? ` <a class="src" href="${esc(w.url)}" target="_blank" rel="noopener">อ่านข่าวต้นทาง ↗</a>` : '';
+    return `<div class="wcard${hot ? ' hot' : ''}">` +
+      `<div class="wtop"><span class="wrank">${i + 1}</span>` +
+      `<h3 class="wname">${esc(w.emoji)} ${esc(w.name)}</h3></div>` +
+      `<div class="wtags">${tags}</div>${why}` +
+      `<div class="wmeta">${ageBar(w.age || 1, maxAge)} มีข่าวมาแล้ว ${esc(w.age || 1)} วัน · ` +
+      `${esc(w.srcCount)} สำนัก${w.impact ? ' · ระดับ' + esc(w.impact) : ''}${link}</div></div>`;
+  }).join('') : `<div class="quiet">ไม่มีประเด็นที่เข้าเกณฑ์เฝ้าติดตามต่อเนื่องจากข่าวเมื่อวาน</div>`;
+
+  const more = (d.watchMore || []).length
+    ? `<div class="watchbox"><div class="lbl wt">ประเด็นรองที่เข้าเกณฑ์ (${d.watchMore.length})</div>` +
+      d.watchMore.map(m => `<div class="wmore">• ${esc(m.name)} <span class="rm">— ${esc(m.tags)}</span></div>`).join('') +
+      `</div>` : '';
+
+  const attn = (d.attention || []).length
+    ? `<h2>ประเด็นที่สื่อพูดถึงมากที่สุด</h2>` +
+      `<div class="attn">` + d.attention.map((a, i) =>
+        `<div class="ai"><span class="an">${i + 1}.</span>${esc(a.name)} <span class="rm">— ${esc(a.meta)}</span>` +
+        (a.url ? ` <a class="src" href="${esc(a.url)}" target="_blank" rel="noopener">↗</a>` : '') + `</div>`).join('') +
+      `</div>` : '';
+
+  const totalTopics = (d.appendix || []).reduce((s2, g) => s2 + g.items.length, 0);
+  const appendix = (d.appendix || []).map(g =>
+    `<details class="apg"><summary>${esc(g.emoji)} ${esc(g.cat)} (${g.items.length})</summary>` +
+    g.items.map(it => `<div class="ap">• ${esc(it.name)} <span class="rm">${esc(it.meta)}</span></div>`).join('') +
+    `</details>`).join('');
+
+  // 🔴 ฉบับตัวอย่างต้องมีป้ายบอกเสมอ ไม่งั้นอ่านแล้วเข้าใจว่าเป็นข่าวจริง
+  const mock = d.isMockup
+    ? `<div class="mock">🧪 <b>MOCKUP</b> — ${esc(d.mockNote || 'ฉบับตัวอย่างสำหรับตรวจหน้าตา ตัวเลขและเนื้อหาไม่ใช่ของจริง')}</div>` : '';
+
+  const quiet = d.quiet
+    ? `<div class="quiet">🌙 วันข่าวเบาบาง — เมื่อวานมีข่าวเพียง ${esc(S.news)} ข่าว ` +
+      `ฉบับนี้จึงสั้นกว่าปกติโดยตั้งใจ ไม่ใช่ระบบเก็บข่าวไม่ครบ</div>` : '';
+
+  const autoFlag = d.execAuto
+    ? `<div class="autoflag">ℹ️ บทสรุปฉบับนี้เขียนจากการคำนวณของระบบ (ตัวช่วยวิเคราะห์เรียกไม่สำเร็จหรือไม่ผ่านด่านตรวจอ้างอิง) — ตัวเลขทุกตัวยังถูกต้องตามชีต</div>` : '';
+
+  return `<!doctype html><html lang="th"><head><meta charset="utf-8">` +
+    `<title>${esc(d.title)} · ${esc(d.cardPeriod || d.periodLabel)}</title>` +
+    `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+    TPL_BOOT + `<style>${TPL_STYLE}${TPL_STYLE_DAILY}</style></head><body>
+
+<div class="toolbar"><button type="button" class="tb tb-close" onclick="closeThisPage()">✕ ปิดหน้านี้</button><button type="button" class="tb tb-theme" id="themeBtn" onclick="toggleTheme()"></button><button type="button" class="tb tb-pdf" onclick="window.print()">🖨️ บันทึกเป็น PDF</button></div>${mock}
+
+<div class="banner"><span class="tag">${esc(cycleLabel(d.type))} · ฉบับที่ ${esc(d.no)}</span>
+<h1>${esc(d.title)}</h1>
+<div class="sub">${esc(d.periodLabel)} · จัดทำโดยระบบติดตามข่าวอัตโนมัติ</div></div>
+
+${quiet}
+<div class="kpis">${kpi}</div>
+${cmp}
+
+<h2>สรุปภาพรวม</h2>
+<div class="exec"><p>${esc(d.exec)}</p>${autoFlag}</div>
+
+<h2>ประเด็นที่ต้องเฝ้าติดตามวันนี้</h2>
+<div class="cmpn">เรียงตามคะแนนที่ระบบคำนวณจากข้อเท็จจริงที่วัดได้ — ความต่อเนื่อง ระดับผลกระทบ จำนวนสำนักที่นำเสนอ และการเติบโตจากวันก่อน</div>
+${watchHtml}
+${more}
+
+${attn}
+
+<h2 class="pb">ตัวเลขประกอบ</h2>
+${fig(trend, `ภาพที่ 1 — ${esc(d.trendLabel || 'แนวโน้มปริมาณข่าวย้อนหลัง')} · เส้นประ = ค่าเฉลี่ยของช่วง · แท่งขวาสุดคือวันที่รายงานฉบับนี้พูดถึง`)}
+${fig(catsCh, 'ภาพที่ 2 — จำนวนข่าวเมื่อวานรายหมวด แยกข่าวปกติ/ข่าวลบ')}
+
+<h2 class="pb">ภาคผนวก — ประเด็นข่าวทั้งหมดของวัน (${totalTopics} ประเด็น)</h2>
+<div class="apx">${appendix}</div>
+
+<footer>${esc(d.footNote || '')}</footer>
+${TPL_TAIL}</body></html>`;
+}
+
 function renderReport(d) {
+  // ☀️ รุ่น -64: รายงานประจำวันใช้โครงคนละแบบ — แยกทางตั้งแต่บรรทัดแรก
+  if (d.type === 'daily') return renderDaily(d);
   const S = d.stats || {};
   const daily   = chartDaily(d.daily || []);
   const catsCh  = chartCats(d.cats || [], d.prevPeriodLabel || '');
@@ -471,7 +682,9 @@ ${TPL_TAIL}</body></html>`;
 }
 
 function cycleLabel(t) {
-  return t === 'monthly' ? 'รายงานประจำเดือน' : 'รายงานประจำสัปดาห์';
+  if (t === 'daily') return 'รายงานประจำวัน';
+  if (t === 'monthly') return 'รายงานประจำเดือน';
+  return 'รายงานประจำสัปดาห์';
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -555,10 +768,15 @@ function indexEntry(d) {
     url: 'reports/' + d.id + '.html',
     stats: {
       news: S.news, topics: S.topics, neg: S.neg, negPct: S.negPct,
-      newsDelta: S.newsDelta, negPctDelta: S.negPctDelta
+      newsDelta: S.newsDelta, negPctDelta: S.negPctDelta,
+      // ☀️ รุ่น -64 — เฉพาะรายงานประจำวัน (ฉบับรายสัปดาห์จะเป็น undefined แล้วหายไปตอน stringify)
+      watchCount: S.watchCount
     },
     topCat: d.topCat,
-    highlights: (d.cardHighlights || []).slice(0, 3),
+    // ☀️ การ์ดรายวันไม่มี cardHighlights — ใช้ชื่อประเด็นเฝ้าระวัง 3 อันดับแรกแทน
+    highlights: (d.cardHighlights && d.cardHighlights.length
+      ? d.cardHighlights
+      : (d.watch || []).map(w => w.name)).slice(0, 3),
     isMockup: !!d.isMockup,
     publishedAt: d.publishedAt
   };
