@@ -9,6 +9,9 @@ var state = {
   //       ต่อหน้าผู้ใช้ — ซึ่งเป็นสิ่งที่การกำหนดกรอบ 14 วันตั้งใจแก้พอดี
   statNews: [],
   statLabel: '',
+  // 🆕 S23 — เก็บ "ขอบเขตวัน" เป็นตัวเลข ไม่ใช่แค่ข้อความป้าย
+  //    ไทม์ไลน์ต้องไล่วันทีละวันแม้วันนั้นไม่มีข่าวเลย จึงใช้ statLabel แทนไม่ได้
+  statFrom: '', statTo: '', statDays: 14,
   archivesLoaded: false,
   archiveError: '',
   filteredNews: [],
@@ -18,6 +21,7 @@ var state = {
 };
 
 var THAI_MONTHS_ABBR = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+var THAI_DAYS_ABBR = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
 
 // ============================================================
 // ตารางแปลง "โดเมน → ชื่อสำนักข่าว" สำหรับการแสดงผล
@@ -309,6 +313,11 @@ async function loadData() {
     state.statNews = state.allNews.filter(function (n) {
       return new Date(n.datetime).getTime() >= statFromMs;
     });
+    // 🆕 S23 — ขอบเขตเดียวกับการ์ดสถิติเป๊ะ (แหล่งความจริงเดียวคือ heartbeat)
+    state.statFrom = (hb && hb.statFrom) || '';
+    state.statTo   = (hb && hb.statTo) || '';
+    state.statDays = (hb && hb.statDays) || 14;
+
     state.statLabel = (hb && hb.statFrom && hb.statTo)
       ? 'สถิติย้อนหลัง ' + (hb.statDays || 14) + ' วัน (' +
         formatThaiYmd(hb.statFrom) + ' - ' + formatThaiYmd(hb.statTo) + ')'
@@ -915,13 +924,33 @@ var cyclesType = 'all';
 var CYC_PAGE = 20;
 var cyclesShown = CYC_PAGE;
 
+/**
+ * 🆕 S23 — อ่าน data/reports.json ครั้งเดียว ใช้ร่วมกันทั้งแท็บ "วงรอบ" และไทม์ไลน์ในแท็บกราฟ
+ *
+ * เก็บเป็น Promise ไม่ใช่ผลลัพธ์ เพราะ 2 แท็บอาจขอพร้อมกันตอนไฟล์ยังโหลดไม่เสร็จ
+ * ถ้าเก็บเป็นผลลัพธ์จะยิงเน็ตซ้ำ · ถ้าใช้ธง boolean ตัวที่สองจะได้ค่าว่างไปเลย
+ *
+ * 🔴 ล้มแล้วต้องล้มดัง — คืน reject ให้ผู้เรียกจัดการเอง ห้ามกลืนเป็น []
+ *    เพราะ [] แปลว่า "ไม่มีรายงาน" ซึ่งคนละเรื่องกับ "โหลดไม่ได้"
+ */
+var reportsIndexPromise = null;
+function fetchReportsIndex() {
+  if (!reportsIndexPromise) {
+    reportsIndexPromise = fetch('data/reports.json', { cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (json) { return (json && json.reports) ? json.reports : []; })
+      .catch(function (err) { reportsIndexPromise = null; throw err; });  // ให้ลองใหม่ได้
+  }
+  return reportsIndexPromise;
+}
+
 async function loadCycles() {
   var grid = document.getElementById('cyclesGrid');
   try {
-    var res = await fetch('data/reports.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    var json = await res.json();
-    cyclesData = (json && json.reports) ? json.reports : [];
+    cyclesData = await fetchReportsIndex();
     renderCycles();
   } catch (err) {
     // ⚠️ แยก 2 กรณีให้ชัด — "ยังไม่มีไฟล์ดัชนี" ไม่ใช่ความผิดพลาด แต่ "โหลดแล้วพัง" คือ
@@ -1244,6 +1273,7 @@ function renderCharts() {
   renderCategoryBar(statNews);        // ⚠️ ส่ง "ข่าว" ไม่ใช่ "ประเด็น" — กราฟนี้นับรายข่าว
   renderSourceBar(statNews);
   renderTrendBar(statNews);
+  renderTimeline();   // 🆕 S23 — ไม่ await: ไทม์ไลน์รอไฟล์ดัชนี ห้ามให้ถ่วงการวาดกราฟ
 }
 
 function getLast14DaysNews() {
@@ -1269,6 +1299,184 @@ function renderChartStats(allTopics, statNews) {
     '<div class="stat-card"><p class="label">ประเด็นข่าวลบ</p><p class="value negative">' + negCount + '</p></div>' +
     '<div class="stat-card"><p class="label">ประเด็นไทย-กัมพูชา</p><p class="value accent">' + camCount + '</p></div>';
 }
+// ============================================================
+// 🕐 S23 (18 ส.ค. 69) — ไทม์ไลน์เรื่องเด่นรายวัน (ท้ายแท็บกราฟ)
+//
+// แบ่งหน้าที่ของแหล่งข้อมูลไว้ชัดเจน อย่ารวมกัน:
+//   · data/reports.json  = เรื่องเด่น 3 หัวข้อ · ลิงก์ฉบับเต็ม · ข่าว/ประเด็น/ข่าวลบ/สัดส่วน
+//                          (ตัวเลขชุดเดียวกับการ์ดในแท็บ "วงรอบ" และข้อความ LINE ตอนเช้า)
+//   · state.statNews     = ใช้นับ "ประเด็นลบ" เท่านั้น เพราะดัชนีไม่มีค่านี้
+//
+// 🔴 ห้ามคำนวณ "เรื่องเด่น" ขึ้นใหม่ในหน้าเว็บ — จะกลายเป็นนิยามที่ 2 ที่เพี้ยนจาก LINE
+// 🔴 วันที่ยังไม่มีรายงาน ให้ปล่อยว่างตามจริง ห้ามเดาตัวเลขมาเติม
+//    (ข้อสั่งการเจ้าของระบบ 18 ส.ค. 69 — ระบบออกรายงานวันละฉบับ เดี๋ยวก็เต็มเอง)
+// ============================================================
+
+/** วันตามเวลาไทย 'yyyy-mm-dd' จากเวลาใด ๆ — ไม่พึ่งโซนเวลาของเครื่องผู้ชม */
+function tlThaiYmd(dt) {
+  var ms = (dt instanceof Date) ? dt.getTime() : new Date(dt).getTime();
+  if (isNaN(ms)) return '';
+  return new Date(ms + 7 * 3600000).toISOString().slice(0, 10);
+}
+
+/**
+ * ชื่อวันภาษาไทยจาก 'yyyy-mm-dd'
+ * 🔴 ต้องผ่าน Date.UTC + getUTCDay เท่านั้น — ถ้าใช้ new Date(ymd).getDay()
+ *    ผู้ชมที่ไม่ได้อยู่โซนเวลาไทยจะเห็นชื่อวันเพี้ยนไป 1 วัน (บทเรียนเดียวกับ formatThaiYmd)
+ */
+function tlThaiDayName(ymd) {
+  var a = String(ymd || '').split('-');
+  if (a.length !== 3) return '';
+  var d = new Date(Date.UTC(Number(a[0]), Number(a[1]) - 1, Number(a[2])));
+  return isNaN(d.getTime()) ? '' : THAI_DAYS_ABBR[d.getUTCDay()];
+}
+
+/** '17 ส.ค.' — สั้นพอสำหรับหัวแถว (ปีอยู่ในป้ายขอบเขตด้านบนของแท็บแล้ว) */
+function tlShortDate(ymd) {
+  var a = String(ymd || '').split('-');
+  if (a.length !== 3) return String(ymd || '');
+  return Number(a[2]) + ' ' + THAI_MONTHS_ABBR[Number(a[1]) - 1];
+}
+
+/**
+ * ไล่วันจากใหม่ไปเก่าตามขอบเขตที่ heartbeat กำหนด (ชุดเดียวกับการ์ดสถิติและกราฟ)
+ * ⚠️ ต้องไล่ทีละวันแบบนี้ ไม่ใช่ไล่จากข่าวที่มี — วันที่ไม่มีข่าวเลยก็ต้องมีแถว
+ */
+function tlDayList() {
+  var days = [];
+  var endMs = thaiDayStartMs(state.statTo);
+  if (endMs === null) {
+    // ถอย: ไม่มีชีพจร → 14 วันล่าสุดนับจากตอนนี้ (ยังทำงานได้ ไม่ล้ม)
+    for (var i = 0; i < 14; i++) days.push(tlThaiYmd(Date.now() - i * 86400000));
+    return days;
+  }
+  var startMs = thaiDayStartMs(state.statFrom);
+  if (startMs === null) startMs = endMs - 13 * 86400000;
+  // กันไว้: ถ้าวันไหนตั้งค่าผิดจนช่วงยาวเกินเหตุ ให้ตัดที่ 60 แถว ไม่ปล่อยวนไม่รู้จบ
+  for (var ms = endMs; ms >= startMs && days.length < 60; ms -= 86400000) days.push(tlThaiYmd(ms));
+  return days;
+}
+
+/**
+ * นับ "ประเด็นที่มีข่าวลบ" แยกรายวัน จาก state.statNews
+ * 🔴 ใช้สูตรจับกลุ่มชุดเดียวกับ groupIntoTopics() แบบคำต่อคำ
+ *    ถ้าสูตรสองที่ไม่ตรงกัน ตัวเลขบนหน้าเดียวกันจะขัดกันเองโดยไม่มีใครรู้
+ */
+function tlNegTopicsByDay() {
+  var acc = {};
+  state.statNews.forEach(function (n) {
+    if (!n.isNegative) return;
+    var d = tlThaiYmd(n.datetime);
+    if (!d) return;
+    if (!acc[d]) acc[d] = {};
+    acc[d][n.eventGroup || ('SINGLE-' + n.title + n.datetime)] = 1;
+  });
+  var out = {};
+  Object.keys(acc).forEach(function (d) { out[d] = Object.keys(acc[d]).length; });
+  return out;
+}
+
+/** ระดับวงกลม — เกณฑ์เดียวกับที่ใช้อ่านความหนักของวันในรายงาน */
+function tlLevel(negPct) {
+  if (!(negPct > 0)) return 'lv0';
+  if (negPct >= 40) return 'lv3';
+  if (negPct >= 15) return 'lv2';
+  return 'lv0';
+}
+
+async function renderTimeline() {
+  var ul = document.getElementById('dailyTimeline');
+  if (!ul) return;
+
+  var titleEl = document.getElementById('tlTitle');
+  if (titleEl) titleEl.textContent = '🕐 เรื่องเด่นรายวัน · ' + (state.statDays || 14) + ' วันล่าสุด';
+
+  var reports;
+  try {
+    reports = await fetchReportsIndex();
+  } catch (err) {
+    // ⚠️ แยก "ยังไม่มีไฟล์ดัชนี" ออกจาก "โหลดแล้วพัง" แบบเดียวกับแท็บวงรอบ
+    var notFound = /HTTP 404/.test(String(err && err.message));
+    ul.innerHTML = '<li class="tl-loading">' + (notFound
+      ? 'ยังไม่มีรายงานประจำวันในระบบ'
+      : 'โหลดรายการรายงานไม่สำเร็จ: ' + escapeHtml(err && err.message)) + '</li>';
+    return;
+  }
+
+  var byDay = {};
+  (reports || []).forEach(function (r) {
+    if (r && r.type === 'daily' && r.from) byDay[r.from] = r;
+  });
+  var negTopics = tlNegTopicsByDay();
+  var haveStatNews = state.statNews.length > 0;
+
+  ul.innerHTML = tlDayList().map(function (ymd) {
+    var label = escapeHtml(tlThaiDayName(ymd) + ' ' + tlShortDate(ymd));
+    var r = byDay[ymd];
+
+    // ── วันที่ยังไม่มีรายงาน: ปล่อยว่าง บอกตรง ๆ ว่ายังไม่มี ──
+    //    แยกข้อความของ "วันนี้" ออกมา เพราะสองกรณีนี้คนละเรื่องกัน:
+    //      · วันนี้        = ยังไม่ถึงเวลาออกรายงาน (ระบบออกเช้าวันถัดไป) — ปกติ
+    //      · วันก่อนหน้า   = เลยเวลามาแล้วแต่ไม่มี — ถ้าเป็นวันหลังจากที่ระบบเริ่มออกรายงาน
+    //                        แล้วยังว่าง แปลว่ามีบางอย่างพลาด ต้องไม่ถูกกลบด้วยข้อความเดียวกัน
+    if (!r) {
+      var isToday = (state.statTo && ymd === state.statTo);
+      return '<li class="tl-row"><span class="tl-dot lv0"></span>' +
+        '<div class="tl-head"><span class="tl-date">' + label + '</span></div>' +
+        '<p class="tl-empty">— ' + (isToday
+          ? 'รายงานของวันนี้จะจัดทำในเช้าวันพรุ่งนี้'
+          : 'ยังไม่มีรายงานของวันนี้ในระบบ') + ' —</p></li>';
+    }
+
+    var st = r.stats || {};
+    var news = Number(st.news) || 0;
+    var topics = Number(st.topics) || 0;
+    var neg = Number(st.neg) || 0;
+    var negPct = Number(st.negPct) || 0;
+
+    var head = '<div class="tl-head"><span class="tl-date">' + label + '</span>' +
+      '<span class="tl-stat"><b>' + news + '</b> ข่าว · <b>' + topics + '</b> ประเด็น</span></div>';
+
+    // ⚠️ "ประเด็นลบ" นับจาก news.json ส่วน "ข่าวลบ" มาจากดัชนี — คนละแหล่งกัน
+    //    ⇒ ต้องมีด่านตรวจว่าสองตัวนี้ "เป็นไปได้จริง" ก่อนเอามาวางคู่กัน
+    //
+    // 🔴 บทเรียนจากชุดตรวจ 18 ส.ค. 69: ถ้าปล่อยตามใจสองแหล่ง จะได้บรรทัดแบบ
+    //    "ข่าวลบ 0 ข่าว · 2 ประเด็น" ซึ่งเป็นไปไม่ได้ทางตรรกะ — ประเด็นลบมีไม่ได้
+    //    ถ้าไม่มีข่าวลบเลย และมีมากกว่าจำนวนข่าวลบก็ไม่ได้
+    //    เจอแบบนั้นให้ "ตัดท่อนที่ไม่มั่นใจทิ้ง + ส่งเสียง" ไม่ใช่ดัดตัวเลขให้ดูดี
+    //    (ค่าที่ดัดแล้วจะกลบสาเหตุจริงไว้ตลอดกาล — วัดจากของจริง 5 วันแรกไม่มีเคสนี้เลย)
+    var nt = negTopics[ymd] || 0;
+    var ntOk = haveStatNews && nt <= neg && (neg === 0 || nt > 0);
+    if (haveStatNews && !ntOk) {
+      console.warn('⚠️ ไทม์ไลน์ ' + ymd + ': ข่าวลบจากดัชนี = ' + neg +
+                   ' แต่นับประเด็นลบจาก news.json ได้ ' + nt + ' → ตัดท่อนประเด็นลบทิ้ง');
+    }
+    var negPart = '<b>' + neg + '</b> ข่าว';
+    if (ntOk) negPart += ' · <b>' + nt + '</b> ประเด็น';
+
+    var bar = '<div class="tl-bar"><div class="tl-track">' +
+      '<div class="tl-fill" style="width:' + Math.max(0, Math.min(100, negPct)) + '%"></div></div>' +
+      '<span class="tl-neg">ข่าวลบ ' + negPart + '</span></div>';
+
+    var hi = (r.highlights || []).slice(0, 3);
+    var body = hi.length
+      ? '<ol class="tl-hl">' + hi.map(function (t) {
+          return '<li>' + escapeHtml(t) + '</li>';
+        }).join('') + '</ol>'
+      : '';
+
+    var watch = Number(st.watchCount) || 0;
+    var foot = '<div class="tl-foot"><span class="tl-tag">' +
+      (watch > 0 ? 'เฝ้าระวัง <b>' + watch + '</b> ประเด็น'
+                 : 'ไม่มีประเด็นที่เข้าเกณฑ์เฝ้าระวังในวันนี้') + '</span>' +
+      (r.url ? '<a class="tl-more" href="' + escapeAttr(r.url) + '" target="_blank" rel="noopener">อ่านฉบับเต็ม →</a>' : '') +
+      '</div>';
+
+    return '<li class="tl-row"><span class="tl-dot ' + tlLevel(negPct) + '"></span>' +
+           head + bar + body + foot + '</li>';
+  }).join('');
+}
+
 /**
  * กราฟหมวดข่าว — แท่งแนวนอนซ้อน "ข่าวลบ + ข่าวอื่นๆ"
  *
