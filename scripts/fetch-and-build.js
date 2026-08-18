@@ -46,7 +46,63 @@ const ALLOW_SHRINK = String(process.env.ALLOW_SHRINK || '').toLowerCase() === 't
 // ตั้ง 20% จึงห่างจากของจริงมาก แต่ยังจับ "CSV ขาดครึ่ง" ได้อยู่
 const MAX_SHRINK_RATIO = 0.20;
 
-const OUT_PATH = path.join(process.cwd(), 'data', 'news.json');
+const DATA_DIR = path.join(process.cwd(), 'data');
+const OUT_PATH = path.join(DATA_DIR, 'news.json');
+
+// ============================================================
+// 🆕 S22 (18 ส.ค. 69) — แบ่ง news.json เป็น "ช่วงล่าสุด" + "คลังรายเดือน"
+//
+// 💥 ปัญหา: news.json ส่งข่าว "ทั้งหมดตั้งแต่วันแรก" ให้ทุกคนที่เปิดเว็บ
+//    วัดจริง 18 ส.ค. 69: 1,905 ข่าว = 2,600 KB · โต 34.9 KB/วัน
+//    ⇒ 1 ปี ~14.8 MB · 3 ปี ~39 MB ที่ต้องโหลดทุกครั้งที่เปิด
+//
+// 🔑 กติกาขอบไฟล์ — ต้องเป็นแบบนี้เท่านั้น ไม่งั้นเกิด "ช่องว่าง"
+//    news.json = ตั้งแต่ "วันที่ 1 ของเดือนปัจจุบัน" หรือ "STAT_DAYS วันล่าสุด"
+//                แล้วแต่อันไหน **เก่ากว่า**
+//
+//    ❌ ถ้าใช้ "14 วันล่าสุด" เฉย ๆ: 18 ส.ค. ย้อน 14 วัน = 5 ส.ค.
+//       แต่คลัง ก.ค. จบที่ 31 ก.ค. ⇒ 1-4 ส.ค. หายไปจากทั้งสองไฟล์
+//    ✅ กติกาข้างบนทำให้ทุกวันของปีมีข้อมูลครบเสมอ (ยอมให้ซ้อนกันได้ ไม่ยอมให้ขาด)
+//
+// 🔒 คลัง = "เดือนที่ปิดแล้ว ทั้งเดือน" ⇒ ไม่เปลี่ยนอีก ⇒ เบราว์เซอร์แคชได้ถาวร
+//    แต่ "นิ่งถาวร" ไม่จริง 100% — ban_sweep เคยลบข่าวเก่า 480 ใบเมื่อ 14 ส.ค. 69
+//    ⇒ จึงต้องมีเลขรุ่น (แฮช) รายไฟล์ใน heartbeat ให้เบราว์เซอร์รู้ว่าเมื่อไรต้องโหลดใหม่
+// ============================================================
+const STAT_DAYS = 14;          // ขอบเขตของ "การ์ดสถิติ" บนหน้าเว็บ (มีป้ายบอกผู้ใช้)
+const THAI_OFFSET_MS = 7 * 3600 * 1000;
+
+/** แตกวัน/เดือน/ปีตามเวลาไทย — ข้อมูลเก็บเป็น ISO (UTC) จึงต้องบวก 7 ชม.ก่อนเสมอ */
+function thaiParts(input) {
+  var d = new Date(new Date(input).getTime() + THAI_OFFSET_MS);
+  return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate() };
+}
+/** 'yyyy-mm' ตามเวลาไทย — ใช้จัดถังรายเดือน */
+function thaiMonthKey(input) {
+  var p = thaiParts(input);
+  return p.y + '-' + String(p.m).padStart(2, '0');
+}
+/** ชื่อไฟล์คลัง — ใช้ปี พ.ศ. ให้ตรงกับที่ระบบใช้ทุกที่ */
+function archiveName(monthKey) {
+  var a = monthKey.split('-');
+  return 'news-' + (Number(a[0]) + 543) + '-' + a[1] + '.json';
+}
+/** เลขรุ่นของไฟล์ = 6 ตัวแรกของ SHA-1 ของเนื้อไฟล์ */
+function sha6(text) {
+  return require('crypto').createHash('sha1').update(text).digest('hex').slice(0, 6);
+}
+/**
+ * เขียนไฟล์เฉพาะเมื่อเนื้อเปลี่ยนจริง
+ * 🔴 จำเป็น ไม่ใช่การประหยัด — ถ้าเขียนทับทุกรอบ ไฟล์คลังจะถูก commit ใหม่ทุกชั่วโมง
+ *    repo จะบวมด้วยสำเนาของข้อมูลที่ไม่ได้เปลี่ยนเลย (บทเรียนเดียวกับ S19)
+ */
+function writeIfChanged(fullPath, text) {
+  try {
+    if (fs.existsSync(fullPath) && fs.readFileSync(fullPath, 'utf8') === text) return false;
+  } catch (e) { /* อ่านไม่ได้ = ถือว่าเปลี่ยน */ }
+  fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+  fs.writeFileSync(fullPath, text);
+  return true;
+}
 
 // ============================================================
 // ⭐ S20 — ไฟล์ "ชีพจร" เพิ่ม 8 ส.ค. 69
@@ -84,15 +140,24 @@ const HEARTBEAT_PATH = path.join(process.cwd(), 'data', 'heartbeat.json');
  * @param {number} count  จำนวนข่าวที่นับได้ในรอบนี้
  * @param {string} dataAt generatedAt ของ news.json ที่ใช้อยู่ ณ ตอนนี้
  */
-function writeHeartbeat(result, count, dataAt) {
+function writeHeartbeat(result, count, dataAt, meta) {
   try {
-    fs.mkdirSync(path.dirname(HEARTBEAT_PATH), { recursive: true });
-    fs.writeFileSync(HEARTBEAT_PATH, JSON.stringify({
+    var body = {
       checkedAt: new Date().toISOString(),
       result: result,
-      count: count,
+      count: count,            // 🆕 S22: ยอด "ทั้งระบบ" ไม่ใช่แค่ news.json
       dataAt: dataAt || null
-    }));
+    };
+    // 🆕 S22 — บอกหน้าเว็บว่า (ก) กรอบสถิติคือช่วงไหน (ข) มีคลังอะไรบ้าง เลขรุ่นอะไร
+    //    🔒 ต้องมาจากที่นี่ที่เดียว ห้ามให้หน้าเว็บคำนวณเอง — ไม่งั้นวันหนึ่งจะตอบไม่ตรงกัน
+    if (meta) {
+      body.statDays = meta.statDays;
+      body.statFrom = meta.statFrom;
+      body.statTo = meta.statTo;
+      body.archives = meta.archives || [];
+    }
+    fs.mkdirSync(path.dirname(HEARTBEAT_PATH), { recursive: true });
+    fs.writeFileSync(HEARTBEAT_PATH, JSON.stringify(body));
     console.log('💓 เขียน data/heartbeat.json แล้ว (' + result + ')');
   } catch (e) {
     // ⚠️ ห้ามล้มทั้งรอบเพราะไฟล์ชีพจร — ของหลักคือ news.json
@@ -203,6 +268,17 @@ function assertHeader(headerRow) {
 // ============================================================
 // S15 ด่านที่ 3 — จำนวนข่าวต้องไม่เป็นศูนย์ และต้องไม่หดผิดปกติเทียบรอบก่อน
 // ============================================================
+/** อ่าน heartbeat รอบก่อน — ใช้ยอด count เป็นฐานเทียบของด่านนิรภัย (S22) */
+function readPreviousHeartbeat() {
+  try {
+    if (!fs.existsSync(HEARTBEAT_PATH)) return null;
+    return JSON.parse(fs.readFileSync(HEARTBEAT_PATH, 'utf8'));
+  } catch (e) {
+    console.log('ℹ️ อ่าน heartbeat.json เดิมไม่ได้ (' + e.message + ') — ข้ามการเทียบยอดรอบนี้');
+    return null;
+  }
+}
+
 function readPreviousOutput() {
   try {
     if (!fs.existsSync(OUT_PATH)) return null;
@@ -215,22 +291,34 @@ function readPreviousOutput() {
   }
 }
 
-function assertRowCount(news, prev) {
-  if (news.length === 0) {
+/**
+ * @param {number} total  ยอดข่าว "ทั้งระบบ" รอบนี้ (ช่วงล่าสุด + ทุกคลัง)
+ * @param {number} before ยอดข่าว "ทั้งระบบ" รอบก่อน (0 = ไม่รู้ ⇒ ข้ามการเทียบ)
+ *
+ * 🔴 S22 (18 ส.ค. 69) — เปลี่ยนจากเทียบ news.json มาเทียบ "ยอดรวมทั้งระบบ"
+ *    เหตุผล: หลังแบ่งไฟล์ news.json เหลือ ~14-31 วัน ⇒ หดจากรอบก่อน 70%+
+ *    ⇒ ด่านจะยิงทันทีทุกรอบ ทั้งที่ไม่มีข้อมูลหายไปไหนเลย
+ *
+ * 🔒 นี่คือ "แก้ให้ด่านวัดของที่ถูก" **ไม่ใช่ "ปลดด่าน"**
+ *    ด่านนี้มีไว้จับ "ชีตต้นทางหดผิดปกติ" ซึ่งยังจับได้เหมือนเดิมทุกประการ
+ *    🔴 ห้ามลด/ปลด MAX_SHRINK_RATIO เด็ดขาด — มันคือสิ่งเดียวที่กันไม่ให้
+ *       ชีตพังแล้วเว็บพังตาม (การปลดด่านเพราะมันขวางทาง = สร้างระเบิดเวลา)
+ */
+function assertRowCount(total, before) {
+  if (total === 0) {
     fail('S15-ZERO', 'แปลง CSV แล้วได้ 0 ข่าว',
          'CSV อ่านได้แต่ไม่มีแถวไหนผ่านเงื่อนไข "มีสถานะตรวจสอบ + มีวันที่" — ตรวจว่าชีตยังมีข้อมูลอยู่จริง');
   }
-  if (!prev || prev.news.length === 0) return;
+  if (!before || before === 0) return;
 
-  var before = prev.news.length;
-  var shrink = (before - news.length) / before;
+  var shrink = (before - total) / before;
   if (shrink > MAX_SHRINK_RATIO) {
     if (ALLOW_SHRINK) {
-      console.log('⚠️ ข้อมูลหด ' + Math.round(shrink * 100) + '% (' + before + ' → ' + news.length +
+      console.log('⚠️ ข้อมูลหด ' + Math.round(shrink * 100) + '% (' + before + ' → ' + total +
                   ' ข่าว) แต่สั่ง allow_shrink=true ไว้ จึงเขียนต่อ');
       return;
     }
-    fail('S15-SHRINK', 'ข้อมูลหดจาก ' + before + ' เหลือ ' + news.length + ' ข่าว (' +
+    fail('S15-SHRINK', 'ข้อมูลหดจาก ' + before + ' เหลือ ' + total + ' ข่าว (' +
          Math.round(shrink * 100) + '% เกินเพดาน ' + Math.round(MAX_SHRINK_RATIO * 100) + '%)',
          'ถ้าเพิ่งลบข่าวจำนวนมากในชีตเองและตั้งใจให้เป็นแบบนี้ ให้กดรันซ้ำที่ ' +
          'Actions > Update news data > Run workflow แล้วตั้ง allow_shrink = true');
@@ -309,8 +397,33 @@ async function main() {
 
   news.sort(function (a, b) { return new Date(b.datetime) - new Date(a.datetime); });
 
+  // ── ⭐ S22 · แบ่งเป็น "ช่วงล่าสุด" + "คลังรายเดือน" ──
+  const nowTh = thaiParts(new Date());
+  const curMonth = nowTh.y + '-' + String(nowTh.m).padStart(2, '0');
+
+  // ขอบของช่วงล่าสุด = เก่ากว่าระหว่าง "วันที่ 1 ของเดือนนี้" กับ "STAT_DAYS วันล่าสุด"
+  const monthStart = Date.UTC(nowTh.y, nowTh.m - 1, 1) - THAI_OFFSET_MS;
+  const statStart  = Date.UTC(nowTh.y, nowTh.m - 1, nowTh.d - (STAT_DAYS - 1)) - THAI_OFFSET_MS;
+  const recentFrom = Math.min(monthStart, statStart);
+
+  const recent = news.filter(function (n) { return new Date(n.datetime).getTime() >= recentFrom; });
+
+  // ถังรายเดือน — เฉพาะ "เดือนที่ปิดแล้ว" (เดือนก่อนหน้าเดือนปัจจุบัน) จึงกลายเป็นคลัง
+  const buckets = {};
+  news.forEach(function (n) {
+    var k = thaiMonthKey(n.datetime);
+    if (k >= curMonth) return;                     // เดือนนี้ยังไม่ปิด ไม่เข้าคลัง
+    (buckets[k] = buckets[k] || []).push(n);
+  });
+
+  const fmt = function (ms) { var p = thaiParts(ms); return p.y + '-' + String(p.m).padStart(2, '0') + '-' + String(p.d).padStart(2, '0'); };
+  console.log('📦 แบ่งไฟล์: ช่วงล่าสุด ' + fmt(recentFrom) + ' → วันนี้ = ' + recent.length + ' ข่าว' +
+              ' · คลัง ' + Object.keys(buckets).length + ' เดือน · รวมทั้งระบบ ' + news.length + ' ข่าว');
+
+  // ⭐ S15 ด่านที่ 3 — เทียบ "ยอดทั้งระบบ" กับรอบก่อน (ไม่ใช่ news.json ปะทะ news.json)
+  const prevHb = readPreviousHeartbeat();
+  assertRowCount(news.length, prevHb ? Number(prevHb.count || 0) : 0);
   const prev = readPreviousOutput();
-  assertRowCount(news, prev);         // ⭐ S15 ด่านที่ 3
 
   // ============================================================
   // ⭐ S19 — เขียนไฟล์ก็ต่อเมื่อ "เนื้อข่าว" เปลี่ยนจริง
@@ -323,32 +436,58 @@ async function main() {
   //    เวลาบนหน้าเว็บจะหยุดนิ่งให้เห็น แทนที่จะขยับทุกชั่วโมงทั้งที่ข่าวไม่มาแล้ว
   //    นี่คือของที่ต้องการ — เดิมหน้าเว็บ "โกหกว่าสด" ได้ตลอดไป
   // ============================================================
-  const newsJson = JSON.stringify(news);
-  if (prev && JSON.stringify(prev.news) === newsJson) {
-    console.log('⏸️ ข้อมูลข่าวเหมือนรอบก่อนทุกประการ (' + news.length + ' ข่าว) — ไม่เขียนไฟล์ ไม่ commit');
+  // ── ⭐ S22 · เขียนคลังก่อน (เฉพาะเดือนที่เนื้อเปลี่ยน) ──
+  //    ทำก่อน news.json เสมอ — ถ้าคลังเขียนไม่สำเร็จ จะได้ยังไม่ทันประกาศ dataAt ใหม่
+  const archives = [];
+  let archiveWrote = 0;
+  Object.keys(buckets).sort().forEach(function (k) {
+    var file = archiveName(k);
+    var text = JSON.stringify({ month: k, count: buckets[k].length, news: buckets[k] });
+    if (writeIfChanged(path.join(DATA_DIR, file), text)) {
+      archiveWrote++;
+      console.log('📚 เขียนคลัง ' + file + ' : ' + buckets[k].length + ' ข่าว');
+    }
+    archives.push({ file: file, v: sha6(text), count: buckets[k].length });
+  });
+  if (archiveWrote === 0 && archives.length) console.log('📚 คลัง ' + archives.length + ' ไฟล์ เนื้อไม่เปลี่ยน — ไม่เขียนทับ');
+
+  const meta = {
+    statDays: STAT_DAYS,
+    statFrom: fmt(statStart),
+    statTo: fmt(Date.now()),
+    archives: archives
+  };
+
+  // ⭐ S19 — เขียน news.json ก็ต่อเมื่อ "เนื้อข่าวช่วงล่าสุด" เปลี่ยนจริง
+  const newsJson = JSON.stringify(recent);
+  if (prev && JSON.stringify(prev.news) === newsJson && archiveWrote === 0) {
+    console.log('⏸️ ข้อมูลเหมือนรอบก่อนทุกประการ (ทั้งระบบ ' + news.length + ' ข่าว) — ไม่เขียนไฟล์ ไม่ commit');
     console.log('   generatedAt เดิมยังเป็น ' + prev.generatedAt);
     console.log('   ℹ️ ถ้าขึ้นข้อความนี้ติดกันหลายรอบหลายชั่วโมง แปลว่าต้นทางหยุดเก็บข่าว ไม่ใช่เว็บพัง');
     // ⭐ S20 — ถึงจะไม่เขียน news.json ก็ต้องบอกหน้าเว็บว่า "รอบนี้ตรวจแล้วนะ"
     //    ไม่งั้นผู้ใช้แยกไม่ออกว่า "ไม่มีข่าวใหม่" หรือ "ระบบตาย"
-    writeHeartbeat('no-change', news.length, prev.generatedAt);
+    writeHeartbeat('no-change', news.length, prev.generatedAt, meta);
     return;
   }
 
-  const diff = prev ? news.length - prev.news.length : news.length;
+  const diff = prevHb ? news.length - Number(prevHb.count || 0) : news.length;
   const output = {
     generatedAt: new Date().toISOString(),
-    count: news.length,
-    news: news
+    count: recent.length,           // จำนวนในไฟล์นี้
+    totalCount: news.length,        // 🆕 ยอดทั้งระบบ (ไว้สอบทานกับ heartbeat)
+    from: fmt(recentFrom),          // 🆕 ไฟล์นี้ครอบคลุมตั้งแต่วันไหน
+    news: recent
   };
 
   fs.mkdirSync(path.dirname(OUT_PATH), { recursive: true });
   fs.writeFileSync(OUT_PATH, JSON.stringify(output));
 
-  console.log('✅ เขียน data/news.json สำเร็จ: ' + news.length + ' ข่าว' +
-              (prev ? ' (เปลี่ยนแปลงสุทธิ ' + (diff >= 0 ? '+' : '') + diff + ')' : ' (รอบแรก)'));
+  console.log('✅ เขียน data/news.json สำเร็จ: ' + recent.length + ' ข่าว (ตั้งแต่ ' + output.from + ')' +
+              ' · ทั้งระบบ ' + news.length + ' ข่าว' +
+              (prevHb ? ' (เปลี่ยนแปลงสุทธิ ' + (diff >= 0 ? '+' : '') + diff + ')' : ' (รอบแรก)'));
 
   // ⭐ S20 — เขียนชีพจรในเส้นทางนี้ด้วย ไม่งั้นรอบที่ "มีข่าวใหม่" จะไม่มีชีพจรอัปเดต
-  writeHeartbeat('updated', news.length, output.generatedAt);
+  writeHeartbeat('updated', news.length, output.generatedAt, meta);
 }
 
 main().catch(function (err) {
