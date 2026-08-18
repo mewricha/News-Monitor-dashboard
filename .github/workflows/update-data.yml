@@ -101,13 +101,32 @@ jobs:
           #       (รอบแรกสุดก่อนติดตั้ง S20 หรือรุ่นเก่าที่ยังไม่เขียนชีพจร)
           git add data/news.json
           [ -f data/heartbeat.json ] && git add data/heartbeat.json
+          # 🔴 เพิ่ม 18 ส.ค. 69 (S22) — ไฟล์คลังรายเดือน `data/news-<ปีพ.ศ.>-<เดือน>.json`
+          #
+          # 💥 บั๊กจริงที่เกิดแล้ว: fetch-and-build.js สร้างไฟล์คลังบนเครื่อง runner สำเร็จ
+          #    และประกาศชื่อมันลง heartbeat.json ด้วย **แต่ขั้นนี้ add แค่ 2 ไฟล์**
+          #    ⇒ ไฟล์คลังหายไปกับ runner ที่ถูกทิ้ง · หน้าเว็บยิงไปหาแล้วได้ 404
+          #    ⇒ ผู้ใช้เห็นเฉพาะข่าวเดือนปัจจุบัน ทั้งที่ข้อมูลไม่ได้หายไปไหน
+          #
+          # 🔑 บทเรียน: "เขียนไฟล์ใหม่" กับ "มีคนเก็บไฟล์นั้น" เป็นคนละเรื่องกัน
+          #    เพิ่มไฟล์ที่ต้องคงอยู่เมื่อไร ต้องมาดูขั้น commit ทุกครั้ง
+          #
+          # ⚠️ ใช้ if...ls แทน `[ -f ] &&` เพราะเป็น glob ที่อาจไม่ตรงกับอะไรเลยในรอบแรก
+          # ⚠️ จงใจไม่ใช้ `git add data/` — โฟลเดอร์นี้มี reports.json ที่ build-cycle.yml ดูแลอยู่
+          #    ถ้ากวาดทั้งโฟลเดอร์ 2 workflow จะแย่งกัน commit ของกันและกัน
+          if ls data/news-[0-9]*.json >/dev/null 2>&1; then
+            git add data/news-[0-9]*.json
+            echo "📚 staged ไฟล์คลัง: $(ls data/news-[0-9]*.json | tr '\n' ' ')"
+          fi
           if git diff --staged --quiet; then
             echo "⏸️ ไม่มีอะไรเปลี่ยนเลยแม้แต่ชีพจร — ไม่ commit"
             echo "   (ปกติไม่ควรเกิดหลังติดตั้ง S20 ถ้าเกิดซ้ำ ๆ ให้ดูว่าขั้น build เขียนชีพจรหรือยัง)"
             echo "⏸️ ไม่มีอะไรเปลี่ยน — ไม่มี commit ในรอบนี้" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          if git diff --staged --quiet -- data/news.json; then
+          # 🔴 S22: ต้องเช็คไฟล์คลังด้วย ไม่งั้นรอบที่ "ข่าวช่วงล่าสุดเท่าเดิม แต่คลังเพิ่งเกิด"
+          #    จะถูกติดป้ายว่า "ไม่มีข่าวใหม่" ทั้งที่มีไฟล์ใหม่เข้ามาจริง
+          if git diff --staged --quiet -- data/news.json data/news-[0-9]*.json 2>/dev/null; then
             git commit -m "ชีพจร: ตรวจแล้วไม่มีข่าวใหม่ [skip ci]"
             SUMMARY="💓 ไม่มีข่าวใหม่ — อัปเดตเฉพาะ data/heartbeat.json"
           else
