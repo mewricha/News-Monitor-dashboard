@@ -83,6 +83,12 @@
   --divider: #D0D2D1;        /* green-20 — เส้นแบ่ง "ภายใน" การ์ด (ต้องจางกว่าขอบนอก) */
   --border-strong: #88908B;  /* green-50 (§9.6 ขอบ input ผ่าน 3:1) */
   --grid: #D0D2D1;           /* §10.5 */
+  /* 🆕 S23 — เส้น/กรอบวงของไทม์ไลน์ แยกโทเคนออกจาก --grid ของกราฟโดยตั้งใจ
+     เหตุผล: โหมดมืด --grid (#2A362E) ต่างจากพื้นการ์ดแค่ 1.08:1 = แทบมองไม่เห็น
+     ถ้าไปแก้ --grid ให้สว่างขึ้น เส้นตารางของกราฟทั้งเว็บจะเด่นขึ้นตามไปด้วย
+     ซึ่งขัดกับหลัก "เส้นตารางต้องถอยหลังให้ข้อมูล" — จึงต้องเป็นคนละโทเคน */
+  --tl-line: #D0D2D1;        /* green-20 · 1.52:1 บนการ์ดขาว */
+  --tl-ring: #88908B;        /* green-50 · 3.28:1 บนการ์ดขาว */
 
   /* ---------- ตัวอักษร ---------- */
   --text: #122017;
@@ -159,6 +165,9 @@
   --divider: #2A362E;        /* green-90 — เส้นแบ่ง "ภายใน" การ์ด */
   --border-strong: #88908B;  /* green-50 · 3.57:1 บนการ์ด */
   --grid: #2A362E;
+  /* 🆕 S23 — ยกความสว่างเฉพาะไทม์ไลน์ (ข้อสั่งการ 18 ส.ค. 69 · เดิมกลืนพื้นหลัง) */
+  --tl-line: #88908B;        /* green-50 · 1.08 → 3.57:1 บนการ์ด */
+  --tl-ring: #B8BCB9;        /* green-30 · 3.57 → 6.09:1 บนการ์ด */
 
   --text: #FFFFFF;
   --text-2: #E7E9E8;         /* green-10 · 9.59:1 บนการ์ด (green-30 ได้ 6.09 กลืนเกินไป) */
@@ -861,3 +870,96 @@ a.cyc-card:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px;
 .cyc-more:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
 
 .empty-sub { font-size: var(--fs-sm); color: var(--text-2); }
+
+
+/* ════════════════════════════════════════════════════════════
+   🕐 ไทม์ไลน์เรื่องเด่นรายวัน — เพิ่ม 18 ส.ค. 69 (S23)
+   อยู่ท้ายแท็บ "กราฟสรุป" ใช้ขอบเขตวันเดียวกับการ์ดสถิติและกราฟทั้งแท็บ
+   ════════════════════════════════════════════════════════════ */
+
+.tl-sub {
+  font-size: var(--fs-sm); line-height: var(--lh-ui);
+  color: var(--text-secondary); margin: -6px 0 0;
+}
+
+.tl { position: relative; margin: 0; padding: 14px 0 0; list-style: none; }
+
+/* เส้นแกนกลาง — หยุดก่อนถึงจุดสุดท้ายเล็กน้อย ไม่ให้ห้อยเลยวงกลมล่างสุด */
+.tl::before {
+  content: ''; position: absolute; left: 7px; top: 22px; bottom: 18px;
+  width: 2px; background: var(--tl-line);
+}
+
+.tl-row { position: relative; padding: 0 0 18px 30px; }
+.tl-row:last-child { padding-bottom: 4px; }
+
+/* วงกลมประจำวัน — ระดับสีบอก "วันนี้ข่าวลบหนักแค่ไหน"
+   🔴 สีเป็นแค่ตัวช่วย ตัวเลข "ข่าวลบ N ข่าว" ข้างล่างคือสิ่งที่บอกความหมายจริง */
+.tl-dot {
+  position: absolute; left: 0; top: 6px; width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--surface); background: var(--tl-line);
+  box-shadow: 0 0 0 1.5px var(--tl-ring);
+}
+.tl-dot.lv3 { background: var(--neg-bar); box-shadow: 0 0 0 1.5px var(--neg-bar); }
+.tl-dot.lv2 { background: var(--neg-bar); opacity: .55; box-shadow: 0 0 0 1.5px var(--neg-bar); }
+.tl-dot.lv0 { background: var(--surface); box-shadow: 0 0 0 1.5px var(--tl-ring); }
+
+.tl-head {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 6px;
+}
+.tl-date { font-weight: 600; font-size: var(--fs-body); white-space: nowrap; }
+.tl-stat {
+  font-size: var(--fs-sm); line-height: var(--lh-ui);
+  color: var(--text-secondary); font-variant-numeric: tabular-nums;
+}
+.tl-stat b { color: var(--text-2); font-weight: 600; }
+
+/* แถบข่าวลบ — ความยาว = สัดส่วนข่าวลบของวันนั้น ให้กวาดสายตาลงมาแล้วเห็นว่าวันไหนหนัก */
+.tl-bar { display: flex; align-items: center; gap: 8px; margin: 2px 0 8px; }
+.tl-track {
+  flex: 0 0 116px; height: 6px; background: var(--tl-line);
+  border-radius: 99px; overflow: hidden;
+}
+.tl-fill { height: 100%; background: var(--neg-bar); border-radius: 99px; }
+.tl-neg {
+  font-size: var(--fs-sm); line-height: var(--lh-ui);
+  color: var(--text-secondary); font-variant-numeric: tabular-nums;
+}
+.tl-neg b { color: var(--neg); font-weight: 600; }
+
+.tl-hl { counter-reset: tlh; margin: 0; padding: 0; list-style: none; }
+.tl-hl li {
+  position: relative; padding: 3px 0 3px 26px;
+  font-size: var(--fs-sm); line-height: 1.55; color: var(--text-2);
+}
+.tl-hl li::before {
+  content: counter(tlh); counter-increment: tlh;
+  position: absolute; left: 0; top: 4px; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface-2); color: var(--text-secondary);
+  font-size: .72rem; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.tl-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 10px; flex-wrap: wrap; margin-top: 8px;
+}
+.tl-tag { font-size: var(--fs-sm); line-height: var(--lh-ui); color: var(--text-secondary); }
+.tl-tag b { color: var(--text-2); }
+.tl-more {
+  font-size: var(--fs-sm); color: var(--accent); text-decoration: none;
+  font-weight: 600; white-space: nowrap;
+}
+.tl-more:hover { text-decoration: underline; }
+.tl-more:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
+
+/* วันที่ยังไม่มีรายงาน — ต้องเห็นว่า "ว่างเพราะยังไม่มี" ไม่ใช่ "ว่างเพราะโหลดพัง" */
+.tl-empty, .tl-loading {
+  font-size: var(--fs-sm); line-height: var(--lh-ui);
+  color: var(--text-secondary); padding: 2px 0 0; margin: 0;
+}
+.tl-loading { list-style: none; padding-left: 30px; }
+
+@media (max-width: 520px) {
+  .tl-track { flex-basis: 84px; }
+}
