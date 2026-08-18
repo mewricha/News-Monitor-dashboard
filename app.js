@@ -3,6 +3,14 @@
 // ============================================================
 var state = {
   allNews: [],
+  // 🆕 S22 (18 ส.ค. 69) — แยก "ชุดสถิติ" ออกจาก "ชุดข้อมูลทั้งหมด"
+  //    🔒 การ์ดสถิติ/กราฟ ต้องนับจาก statNews **เท่านั้น**
+  //       ถ้าไปนับจาก allNews ตัวเลขจะเด้ง (418 → 1,905) ตอนคลังย้อนหลังโหลดเสร็จ
+  //       ต่อหน้าผู้ใช้ — ซึ่งเป็นสิ่งที่การกำหนดกรอบ 14 วันตั้งใจแก้พอดี
+  statNews: [],
+  statLabel: '',
+  archivesLoaded: false,
+  archiveError: '',
   filteredNews: [],
   topics: [],
   selectedCategories: new Set(), // ว่าง = ไม่กรอง (เอาทุกหมวด)
@@ -131,6 +139,20 @@ var IMPACT_RANK = { 'สูง': 3, 'กลาง': 2, 'ต่ำ': 1 };
 
 function formatThaiDate(d) {
   return d.getDate() + ' ' + THAI_MONTHS_ABBR[d.getMonth()] + ' ' + (d.getFullYear() + 543);
+}
+
+/**
+ * 🆕 S22 — จัดรูป 'yyyy-mm-dd' (เวลาไทยอยู่แล้ว) เป็น 'd ม.ค. 2569' โดย **ไม่ผ่าน Date**
+ *
+ * 🔴 ทำไมห้ามผ่าน Date: `new Date('2026-08-05T00:00:00+07:00')` คือ 2026-08-04T17:00Z
+ *    ถ้าเอาไป formatThaiDate() มันจะอ่านตามโซนเวลาของ "เครื่องผู้ชม"
+ *    ⇒ ผู้ชมที่ไม่ได้อยู่ไทยจะเห็นป้ายเพี้ยนไป 1 วัน (จับได้จากการทดสอบจริง 18 ส.ค. 69)
+ *    ⇒ ป้ายนี้ต้องตรงกับ heartbeat เป๊ะเสมอ ไม่ว่าผู้ชมอยู่ที่ไหนในโลก
+ */
+function formatThaiYmd(ymd) {
+  var a = String(ymd || '').split('-');
+  if (a.length !== 3) return String(ymd || '');
+  return Number(a[2]) + ' ' + THAI_MONTHS_ABBR[Number(a[1]) - 1] + ' ' + (Number(a[0]) + 543);
 }
 
 /**
@@ -280,9 +302,25 @@ async function loadData() {
     //    (ของหลักคือรายการข่าว ห้ามให้ป้ายบรรทัดที่สองทำให้ทั้งหน้าโหลดไม่ขึ้น)
     showHeartbeat(hb);   // 🆕 ส่งของที่โหลดมาแล้ว ไม่ยิง fetch ซ้ำ
 
+    // 🆕 S22 — ชุดสถิติ = ช่วงที่ heartbeat บอก (ไม่คำนวณเองในหน้าเว็บ · แหล่งเดียว)
+    //    🔒 ไม่มีชีพจร → ถอยไปใช้ 14 วันล่าสุดที่คำนวณเอง (ยังทำงานได้ ไม่ล้ม)
+    var statFromMs = (hb && hb.statFrom) ? thaiDayStartMs(hb.statFrom)
+                                         : (Date.now() - 13 * 86400000);
+    state.statNews = state.allNews.filter(function (n) {
+      return new Date(n.datetime).getTime() >= statFromMs;
+    });
+    state.statLabel = (hb && hb.statFrom && hb.statTo)
+      ? 'สถิติย้อนหลัง ' + (hb.statDays || 14) + ' วัน (' +
+        formatThaiYmd(hb.statFrom) + ' - ' + formatThaiYmd(hb.statTo) + ')'
+      : 'สถิติย้อนหลัง 14 วัน';
+
     setupMultiselect('category', 'categoryMultiselect', 'categoryToggle', 'categoryPanel', 'ทุกหมวด');
     setupMultiselect('source', 'sourceMultiselect', 'sourceToggle', 'sourcePanel', 'ทุกสำนักข่าว');
     applyFiltersAndRender();
+
+    // 🆕 S22 — โหลดคลังย้อนหลังเบื้องหลัง (ไม่ await · ห้ามหน่วงการแสดงผลหน้าแรก)
+    //    ข้อกำหนดเจ้าของระบบข้อ 1: หน้าเว็บต้องแสดงและค้นหาข่าวย้อนหลังได้ทั้งระบบ
+    loadArchives(hb);
 
     // ⭐ แก้ 4 ส.ค. 69 (R12): ถ้าผู้ใช้กดแท็บ "กราฟสรุป" ไปแล้วระหว่างรอโหลด
     //    renderCharts() จะเคยถูกเรียกตอนที่ state.allNews ยังว่าง แล้วตั้งธง chartsRendered
@@ -294,6 +332,81 @@ async function loadData() {
     document.getElementById('resultsGrid').innerHTML =
       '<div class="empty">โหลดข้อมูลไม่สำเร็จ: ' + escapeHtml(err && err.message) + '</div>';
     console.error(err);
+  }
+}
+
+/**
+ * 🆕 S22 (18 ส.ค. 69) — โหลดคลังข่าวย้อนหลังเบื้องหลัง
+ *
+ * 🔑 ทำไมคลังถึงแคชได้ถาวร: คลังคือ "เดือนที่ปิดแล้ว" จึงไม่เปลี่ยนอีก
+ *    แต่ไม่นิ่ง 100% (ban_sweep เคยลบข่าวเก่า 480 ใบ 14 ส.ค. 69)
+ *    ⇒ ผูก URL กับเลขรุ่น (แฮช) รายไฟล์จาก heartbeat ⇒ เปลี่ยนเมื่อไรโหลดใหม่ทันที
+ *
+ * 🔒 ช่วงล่าสุดกับคลัง **ซ้อนกันได้โดยตั้งใจ** (ต้นเดือนจะซ้อนสูงสุด 13 วัน)
+ *    เพราะยอมให้ซ้อน ดีกว่ายอมให้ขาด — จึงต้องกรองซ้ำด้วย url เสมอ
+ *
+ * 🔒 ล้มยังไงก็ห้ามทำให้หน้าเว็บพัง — ข่าวช่วงล่าสุดแสดงไปแล้วก่อนฟังก์ชันนี้เริ่มทำงาน
+ */
+async function loadArchives(hb) {
+  if (!hb) {
+    // 🔴 ไม่มีชีพจร = ไม่รู้ว่ามีคลังอะไรบ้าง ⇒ หน้าเว็บจะมีแค่ข่าวช่วงล่าสุด
+    //    ห้ามเงียบ — ผู้ใช้ต้องรู้ว่าที่เห็นอยู่ "ไม่ครบ" ไม่ใช่ "ข่าวหาย"
+    state.archivesLoaded = true;
+    state.archiveError = 'อ่านชีพจรไม่ได้ — แสดงเฉพาะข่าวช่วงล่าสุด';
+    console.warn('ไม่มี heartbeat.json → ไม่ทราบรายชื่อคลังย้อนหลัง แสดงเฉพาะข่าวช่วงล่าสุด');
+    applyFiltersAndRender();
+    return;
+  }
+  if (!Array.isArray(hb.archives) || hb.archives.length === 0) {
+    // ปกติในช่วงเปลี่ยนผ่าน (วาง app.js แล้วแต่ Actions ยังไม่รัน) — news.json ยังมีข่าวครบอยู่
+    state.archivesLoaded = true;
+    return;
+  }
+  try {
+    var seen = Object.create(null);
+    state.allNews.forEach(function (n) { seen[n.url] = 1; });
+
+    var added = [];
+    for (var i = 0; i < hb.archives.length; i++) {
+      var a = hb.archives[i];
+      var res = await fetch('data/' + a.file + '?v=' + encodeURIComponent(a.v || ''));
+      if (!res.ok) {
+        console.warn('โหลดคลัง ' + a.file + ' ไม่สำเร็จ (HTTP ' + res.status + ')');
+        state.archiveError = 'โหลดคลังย้อนหลังบางส่วนไม่สำเร็จ';   // 🔴 ต้องบอก ไม่ใช่เงียบ
+        continue;
+      }
+      var j = await res.json();
+      (j.news || []).forEach(function (n) {
+        if (seen[n.url]) return;                 // ซ้ำกับช่วงล่าสุด — ข้าม
+        seen[n.url] = 1;
+        // ⚠️ ต้องทำให้เป็นมาตรฐานเหมือนกับตอนโหลด news.json ทุกประการ
+        //    ไม่งั้นชื่อสำนักข่าว/หมวดของข่าวเก่าจะไม่ตรงกับของใหม่ แล้วตัวกรองจะแตกเป็นสองพวก
+        n.source = displaySourceName(n.source, n.url);
+        n.category = normalizeCategory(n.category);
+        added.push(n);
+      });
+    }
+
+    if (added.length) {
+      state.allNews = state.allNews.concat(added);
+      state.allNews.sort(function (a, b) { return new Date(b.datetime) - new Date(a.datetime); });
+    }
+    state.archivesLoaded = true;
+
+    // 🔒 สร้างรายการตัวกรองใหม่ให้ครบทั้งระบบ (ข้อกำหนดเจ้าของระบบข้อ 5)
+    //    ⚠️ ห้ามสร้างใหม่ถ้าผู้ใช้กำลังเปิดแผงตัวกรองค้างอยู่ — ของจะกระพริบใต้มือ
+    if (!document.querySelector('.ms-panel.open, .ms-panel[hidden="false"]')) {
+      setupMultiselect('category', 'categoryMultiselect', 'categoryToggle', 'categoryPanel', 'ทุกหมวด');
+      setupMultiselect('source', 'sourceMultiselect', 'sourceToggle', 'sourcePanel', 'ทุกสำนักข่าว');
+    }
+    applyFiltersAndRender();
+    // 🔒 การ์ดสถิติไม่ต้องวาดใหม่ — statNews ไม่เปลี่ยน (นั่นคือจุดประสงค์)
+    console.log('📚 โหลดคลังย้อนหลังครบ +' + added.length + ' ข่าว (รวมทั้งระบบ ' + state.allNews.length + ')');
+  } catch (err) {
+    state.archivesLoaded = true;
+    state.archiveError = 'โหลดคลังย้อนหลังไม่สำเร็จ';
+    console.warn('โหลดคลังย้อนหลังไม่สำเร็จ (ข่าวช่วงล่าสุดยังแสดงปกติ):', err);
+    applyFiltersAndRender();
   }
 }
 
@@ -517,8 +630,13 @@ function renderStats(filtered, topics) {
       '<span class="value-sub">' + negPct + '%</span></p></div>' +
     '<div class="stat-card"><p class="label">สำนักข่าว</p><p class="value">' + sourceSet.size + '</p></div>';
 
+  // 🆕 S22 — คลังย้อนหลังโหลดเบื้องหลัง · ระหว่างนี้ต้องบอกผู้ใช้ตรง ๆ
+  //    🔴 ห้ามเงียบ — ผู้ใช้ที่ค้นหาหรือเลือกวันเก่าในช่วง 1-3 วินาทีแรก
+  //       จะเห็นผลไม่ครบแล้วเข้าใจว่า "ระบบทำข่าวหาย" ซึ่งแย่กว่ารอสองวินาที
   document.getElementById('resultCount').textContent =
-    'พบ ' + topics.length + ' ประเด็น (' + filtered.length + ' ข่าว) · ในนั้นเป็นข่าวลบ ' + negTopics + ' ประเด็น';
+    'พบ ' + topics.length + ' ประเด็น (' + filtered.length + ' ข่าว) · ในนั้นเป็นข่าวลบ ' + negTopics + ' ประเด็น' +
+    (state.archivesLoaded ? '' : ' · ⏳ กำลังโหลดข้อมูลย้อนหลัง…') +
+    (state.archiveError ? ' · ⚠️ ' + state.archiveError : '');
 }
 
 function renderResults(topics) {
@@ -1100,13 +1218,16 @@ function renderCharts() {
     if (existing) existing.destroy();
   });
 
-  var allTopics = groupIntoTopics(state.allNews);
-  var last14DaysNews = getLast14DaysNews();
+  // 🆕 S22 — ทั้งแท็บนี้ใช้ขอบเขตเดียวกันหมด (14 วัน) แล้ว
+  //    เดิมปนกัน: การ์ด+กราฟหมวด = ทั้งหมด (ไม่มีป้ายบอก) · อีก 2 กราฟ = 14 วัน (มีป้าย)
+  //    ⇒ ผู้ใช้เทียบตัวเลขคนละขอบเขตโดยไม่รู้ตัว — นี่คือการแก้บั๊กเชิงการสื่อสาร
+  var statNews = state.statNews.length ? state.statNews : getLast14DaysNews();
+  var allTopics = groupIntoTopics(statNews);
 
-  renderChartStats(allTopics);
-  renderCategoryBar(state.allNews);   // ⚠️ ส่ง "ข่าว" ไม่ใช่ "ประเด็น" — กราฟนี้นับรายข่าว
-  renderSourceBar(last14DaysNews);
-  renderTrendBar(state.allNews);
+  renderChartStats(allTopics, statNews);
+  renderCategoryBar(statNews);        // ⚠️ ส่ง "ข่าว" ไม่ใช่ "ประเด็น" — กราฟนี้นับรายข่าว
+  renderSourceBar(statNews);
+  renderTrendBar(statNews);
 }
 
 function getLast14DaysNews() {
@@ -1116,13 +1237,18 @@ function getLast14DaysNews() {
   return state.allNews.filter(function (n) { return new Date(n.datetime) >= cutoff; });
 }
 
-function renderChartStats(allTopics) {
+function renderChartStats(allTopics, statNews) {
   // ⚠️ นับจากธง isNegative — เดิมนับด้วยหมวด ทำให้ข่าวลบเรื่องกัมพูชาตกหล่น 18%
   var negCount = allTopics.filter(function (t) { return t.isNegative; }).length;
   var camCount = allTopics.filter(function (t) { return t.category === 'ชายแดนไทย-กัมพูชา'; }).length;
 
+  // 🆕 S22 — ป้ายบอกขอบเขตของตัวเลข (ข้อกำหนดเจ้าของระบบข้อ 2)
+  //    🔒 ข้อความมาจาก heartbeat ไม่คำนวณในหน้าเว็บ — แหล่งความจริงเดียว
+  var scopeEl = document.getElementById('statScopeLabel');
+  if (scopeEl && state.statLabel) { scopeEl.textContent = state.statLabel; scopeEl.hidden = false; }
+
   document.getElementById('chartStatGrid').innerHTML =
-    '<div class="stat-card"><p class="label">ข่าวทั้งหมด</p><p class="value">' + state.allNews.length + '</p></div>' +
+    '<div class="stat-card"><p class="label">ข่าวทั้งหมด</p><p class="value">' + statNews.length + '</p></div>' +
     '<div class="stat-card"><p class="label">ประเด็นทั้งหมด</p><p class="value accent">' + allTopics.length + '</p></div>' +
     '<div class="stat-card"><p class="label">ประเด็นข่าวลบ</p><p class="value negative">' + negCount + '</p></div>' +
     '<div class="stat-card"><p class="label">ประเด็นไทย-กัมพูชา</p><p class="value accent">' + camCount + '</p></div>';
