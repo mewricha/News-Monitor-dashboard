@@ -173,15 +173,32 @@ function thaiDayEndMs(ymd) {
 // ============================================================
 var HEARTBEAT_STALE_HOURS = 3;
 
-async function showHeartbeat() {
-  var el = document.getElementById('lastChecked');
-  if (!el) return;
+/**
+ * 🆕 18 ส.ค. 69 (S21) — แยก "ไปเอาชีพจร" ออกจาก "วาดชีพจร"
+ *
+ * เหตุผล: loadData ต้องรู้ `dataAt` **ก่อน** โหลดข่าว เพื่อเอาไปทำเลขรุ่นของ URL
+ * 🔒 ไฟล์นี้ต้องสดเสมอ จึงคง cache:'no-store' ไว้ — และมันแค่ ~110 ไบต์
+ *    (มันคือตัวที่ตัดสินว่า "ข้อมูลสดหรือยัง" ถ้าตัวนี้เก่า ทุกอย่างที่ตามมาเก่าหมด)
+ */
+async function fetchHeartbeat() {
   try {
     var res = await fetch('data/heartbeat.json', { cache: 'no-store' });
-    // ⚠️ ไม่มีไฟล์ = ยังไม่ได้ติดตั้ง S20 หรือรอบแรกยังไม่รัน → ซ่อนบรรทัดนี้เงียบ ๆ
+    // ⚠️ ไม่มีไฟล์ = ยังไม่ได้ติดตั้ง S20 หรือรอบแรกยังไม่รัน → คืน null เงียบ ๆ
     //    ห้ามขึ้นข้อความชวนตกใจ เพราะมันไม่ใช่อาการพัง
-    if (!res.ok) return;
-    var hb = await res.json();
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    // ⚠️ ชีพจรพังต้องไม่ทำให้หน้าเว็บพัง — ผู้เรียกจะถอยไปใช้ no-store แบบเดิม
+    console.warn('อ่าน heartbeat.json ไม่ได้ (ไม่กระทบรายการข่าว):', err);
+    return null;
+  }
+}
+
+/** วาดป้ายชีพจร — รับของที่โหลดมาแล้ว ไม่ยิง fetch ซ้ำ */
+function showHeartbeat(hb) {
+  var el = document.getElementById('lastChecked');
+  if (!el || !hb) return;
+  try {
     var t = new Date(hb.checkedAt);
     if (isNaN(t.getTime())) return;
 
@@ -207,8 +224,35 @@ async function showHeartbeat() {
 
 async function loadData() {
   try {
-    var res = await fetch('data/news.json', { cache: 'no-store' });
+    // 🆕 S21 (18 ส.ค. 69) — เลิกสั่งห้ามแคช เปลี่ยนไปผูก URL กับ "เลขรุ่นของข้อมูล"
+    //
+    // 💥 ปัญหาเดิม: cache:'no-store' = สั่งเบราว์เซอร์ห้ามเก็บ และห้ามแม้แต่ถามว่า "เปลี่ยนไหม"
+    //    ⇒ เปิด/รีเฟรชทีไร โหลด news.json ใหม่ทั้งก้อน (2.6 MB) แม้ข่าวไม่เปลี่ยนแม้แต่ใบเดียว
+    //    วัดจริง 18 ส.ค. 69: ข่าวเปลี่ยนจริงแค่ 6-8 รอบ จาก 24 รอบ/วัน
+    //    ⇒ การโหลดส่วนใหญ่คือการโหลดของเดิมซ้ำ
+    //
+    // 🔑 ทำไม dataAt ใช้เป็นเลขรุ่นได้: เพราะกลไก S19 เขียน news.json เฉพาะตอนเนื้อข่าวเปลี่ยนจริง
+    //    ⇒ dataAt เปลี่ยน "ตามข่าว" ไม่ใช่ "ตามเวลา" ⇒ URL จึงเปลี่ยนตามข่าวไปด้วย
+    //    ⇒ ข่าวไม่เปลี่ยน = URL เดิม = เบราว์เซอร์ใช้ของในแคช (โหลดจริงแค่ชีพจร ~110 ไบต์)
+    //    ⇒ ข่าวเปลี่ยน = URL ใหม่ทันที = ไม่มีทางเห็นของเก่า
+    //
+    // 🔒 ไม่มีชีพจร (ไฟล์หาย/รอบแรก) → ถอยไปใช้ no-store แบบเดิมเป๊ะทุกประการ
+    var hb = await fetchHeartbeat();
+    var useVer = !!(hb && hb.dataAt);
+    var res = useVer
+      ? await fetch('data/news.json?v=' + encodeURIComponent(hb.dataAt))
+      : await fetch('data/news.json', { cache: 'no-store' });
     var data = await res.json();
+
+    // 🔒 ด่านกันของเก่า — ไฟล์ที่ได้ต้องตรงกับเลขรุ่นที่ชีพจรบอก
+    //    ไม่ตรง = ชีพจรกับข้อมูลไม่ตรงกัน (เช่นรอบก่อนเขียน heartbeat ไม่สำเร็จ)
+    //    ⇒ ยิงซ้ำแบบไม่ใช้แคชทันที · เกิดยากมาก แต่ถ้าเกิดต้องไม่ปล่อยให้ผู้ใช้เห็นข่าวเก่า
+    if (useVer && data.generatedAt && data.generatedAt !== hb.dataAt) {
+      console.warn('news.json ไม่ตรงกับชีพจร (' + data.generatedAt + ' ≠ ' + hb.dataAt +
+                   ') — โหลดใหม่แบบไม่ใช้แคช');
+      data = await (await fetch('data/news.json', { cache: 'no-store' })).json();
+    }
+
     state.allNews = data.news || [];
 
     // ทำข้อมูลให้เป็นมาตรฐานตั้งแต่โหลด — การ์ด/ตัวกรอง/กราฟ/CSV ได้ค่าเดียวกันทุกจุด
@@ -234,7 +278,7 @@ async function loadData() {
     // ⭐ S20 (8 ส.ค. 69) — บอกผู้ใช้ว่า "ระบบยังตรวจอยู่นะ" แม้ข้อมูลจะไม่ขยับ
     //    ต้องเรียกหลังป้าย "ข้อมูลล่าสุด" ตั้งค่าเสร็จ และห้ามให้มัน throw ออกมา
     //    (ของหลักคือรายการข่าว ห้ามให้ป้ายบรรทัดที่สองทำให้ทั้งหน้าโหลดไม่ขึ้น)
-    showHeartbeat();
+    showHeartbeat(hb);   // 🆕 ส่งของที่โหลดมาแล้ว ไม่ยิง fetch ซ้ำ
 
     setupMultiselect('category', 'categoryMultiselect', 'categoryToggle', 'categoryPanel', 'ทุกหมวด');
     setupMultiselect('source', 'sourceMultiselect', 'sourceToggle', 'sourcePanel', 'ทุกสำนักข่าว');
