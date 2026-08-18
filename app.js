@@ -460,17 +460,33 @@ function setupMultiselect(kind, containerId, toggleId, panelId, allLabel) {
   });
 
   var toggleBtn = document.getElementById(toggleId);
-  toggleBtn.addEventListener('click', function (e) {
-    e.stopPropagation();
-    var isOpen = !panel.hidden;
-    document.querySelectorAll('.multiselect-panel').forEach(function (p) { p.hidden = true; });
-    panel.hidden = isOpen;
-  });
 
-  document.addEventListener('click', function (e) {
-    var container = document.getElementById(containerId);
-    if (!container.contains(e.target)) panel.hidden = true;
-  });
+  // 🔴 แก้ 18 ส.ค. 69 (S22) — ผูก event ได้ "ครั้งเดียวเท่านั้น" ตลอดอายุหน้าเว็บ
+  //
+  // 💥 บั๊กจริงที่เกิดแล้ว: S22 เรียกฟังก์ชันนี้ซ้ำอีกรอบตอนคลังย้อนหลังโหลดเสร็จ
+  //    (เพื่อเติมรายชื่อสำนักข่าวให้ครบทั้งระบบ) ⇒ handler ของปุ่มถูกผูก 2 ตัว
+  //    คลิกเดียว → ตัวที่ 1 เปิดแผง → ตัวที่ 2 เห็นว่า "เปิดอยู่" เลยปิดทันที
+  //    ⇒ **กดแล้วไม่ขึ้นอะไรเลย** ทั้งที่รายชื่อข้างในถูกต้องครบถ้วน
+  //
+  // 🔑 บทเรียน: ฟังก์ชันที่เดิมถูกเรียกครั้งเดียว ไม่ได้แปลว่ามันทนถูกเรียกซ้ำ
+  //    จะเรียกซ้ำเมื่อไร ต้องอ่านทั้งฟังก์ชันก่อนว่ามีอะไรที่ "ทำได้ครั้งเดียว" อยู่ข้างในไหม
+  //
+  // ⚠️ ส่วนที่ต้องทำใหม่ทุกครั้ง (รายชื่อในแผง) อยู่ข้างบนแล้ว — ตรงนี้คือส่วนที่ห้ามทำซ้ำ
+  if (toggleBtn.dataset.msBound !== '1') {
+    toggleBtn.dataset.msBound = '1';
+
+    toggleBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var isOpen = !panel.hidden;
+      document.querySelectorAll('.multiselect-panel').forEach(function (p) { p.hidden = true; });
+      panel.hidden = isOpen;
+    });
+
+    document.addEventListener('click', function (e) {
+      var container = document.getElementById(containerId);
+      if (!container.contains(e.target)) panel.hidden = true;
+    });
+  }
 
   updateMultiselectUI(kind, containerId, toggleId, panelId, allLabel);
 }
