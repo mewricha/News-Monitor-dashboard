@@ -765,7 +765,15 @@ function assertLooksLikeCsv(text) {
 
 async function readFromSheet(url) {
   const { parse } = require('csv-parse/sync');
-  const res = await fetch(url, { redirect: 'follow' });
+  // 🕶️ กันแคช (เพิ่ม 25 ส.ค. 69) — Google แคช published CSV ไว้ ~5 นาที
+  //    แต่ Apps Script สั่ง build "ภายในวินาที" หลังเขียนแท็บ ⇒ ถ้าไม่กันแคช
+  //    build จะได้ข้อมูลชุดเก่า แล้วสรุปว่า "ไม่มีอะไรเปลี่ยน" แบบเงียบสนิท
+  //    (เกิดจริง 25 ส.ค. 69 ตอนซ่อมรายงานย้อนหลัง 4 ฉบับ — Actions เขียวหมดแต่หน้าไม่เปลี่ยน)
+  //    วิธีแก้: ต่อพารามิเตอร์เวลาให้ URL ไม่ซ้ำเดิม แคชจึงไม่มีวันโดน
+  //    (Google ไม่สนพารามิเตอร์แปลกปลอม คืน CSV ตามปกติ) · 🔴 ห้าม log ตัว URL — เป็น secret
+  const bust = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
+  console.log('🕶️ กันแคชชีต: ต่อพารามิเตอร์เวลาท้าย URL แล้ว (ไม่แสดง URL เพราะเป็น secret)');
+  const res = await fetch(bust, { redirect: 'follow' });
   if (!res.ok) throw new Error('ดึงชีตไม่สำเร็จ: HTTP ' + res.status);
   const text = await res.text();
   assertLooksLikeCsv(text);
