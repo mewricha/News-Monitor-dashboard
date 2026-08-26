@@ -468,8 +468,8 @@ a.src{color:var(--forest);text-decoration:none;border-bottom:1px dotted var(--li
 //    ม่วง = ยาเสพติด · ฟ้า = ช่วยเหลือ ปชช. · เทา = หมวดอื่น
 //    ทุกจุดที่ใช้สี มีชื่อหมวดเป็นข้อความกำกับเสมอ — สีเป็นแค่ตัวช่วย (กัน CVD)
 // ═════════════════════════════════════════════════════════════════
-const TPL_STYLE_MONTHLY = `:root{--mcJct:#1B593C;--mcCam:#8A5A00;--mcDrug:#5B4B8A;--mcHelp:#20617E;--mcEtc:#67716B}
-html[data-theme="dark"]{--mcJct:#5FB88A;--mcCam:#E0A93F;--mcDrug:#B9A9E8;--mcHelp:#7FC4E0;--mcEtc:#9AA6A0}
+const TPL_STYLE_MONTHLY = `:root{--mcJct:#1B593C;--mcCam:#8A5A00;--mcDrug:#5B4B8A;--mcHelp:#20617E;--mcBdr:#8C3B1E;--mcEtc:#67716B}
+html[data-theme="dark"]{--mcJct:#5FB88A;--mcCam:#E0A93F;--mcDrug:#B9A9E8;--mcHelp:#7FC4E0;--mcBdr:#E8926B;--mcEtc:#9AA6A0}
 .mchip{display:inline-block;font-size:12pt;font-weight:700;border:1.5px solid;border-radius:14px;padding:0 10px;white-space:nowrap}
 .exb{margin:0;padding-left:22px}.exb li{font-size:15pt;margin-bottom:6px}
 .ainote{background:var(--surfw);border:1.5px dashed var(--amber);border-radius:12px;padding:8px 16px;font-size:12.5pt;color:var(--amber2);margin:10px 0}
@@ -481,7 +481,7 @@ html[data-theme="dark"]{--mcJct:#5FB88A;--mcCam:#E0A93F;--mcDrug:#B9A9E8;--mcHel
 .vtl::before{content:'';position:absolute;left:8px;top:12px;bottom:12px;width:2px;background:var(--line2)}
 .vday{position:relative;padding:0 0 8px 32px;break-inside:avoid;page-break-inside:avoid}
 .vdot{position:absolute;left:1px;margin-top:4px;width:15px;height:15px;border-radius:50%;border:2px solid var(--paper);background:var(--line2);box-shadow:0 0 0 1.5px var(--ink4)}
-.vdate{font-weight:700;font-size:15pt}.vmeta{font-size:12.5pt;color:var(--ink3);margin-left:8px}
+.vdate{font-weight:700;font-size:15pt}.vdow{font-weight:400;color:var(--ink3);font-size:12.5pt}.vmeta{font-size:12.5pt;color:var(--ink3);margin-left:8px}
 .mev{display:flex;gap:9px;align-items:baseline;padding:2px 0 2px 9px;margin-left:-12px;border-left:3.5px solid transparent;font-size:14pt}
 .mev .t{flex:1;line-height:1.45}.mev .n{font-size:12pt;color:var(--ink3);white-space:nowrap}.mev .n b{color:var(--alertx)}
 .mgap{padding:2px 0 10px 32px;font-size:12.5pt;color:var(--ink4)}
@@ -671,6 +671,7 @@ function mcatKey(cat) {
   if (c.indexOf('กัมพูชา') >= 0) return 'Cam';
   if (c.indexOf('ยาเสพติด') >= 0) return 'Drug';
   if (c.indexOf('ช่วยเหลือ') >= 0) return 'Help';
+  if (c.indexOf('ความมั่นคงชายแดน') >= 0) return 'Bdr';
   return 'Etc';
 }
 function mcatVar(cat) { return 'var(--mc' + mcatKey(cat) + ')'; }
@@ -685,6 +686,15 @@ function mchip(cat) {
  * ⑤ วิเคราะห์ narrative รายหมวด ⑥ 10 ประเด็น ⑦ ยกยอด ⑧ สำนักข่าวเสนอต่าง
  * 🔴 ส่วนที่ AI เขียน (①⑤) มีป้ายกำกับเสมอ · หมวดที่ไม่ผ่านด่านตรวจ = ประกาศงดแสดงตรง ๆ
  */
+const M_DOW = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+/** ชื่อวันในสัปดาห์ของ "วันที่ dd" ของเดือนนั้น — คำนวณจาก d.from แบบ UTC ไม่พึ่งโซนเวลาผู้ชม */
+function mDow(fromIso, dd) {
+  const a = String(fromIso || '').split('-');
+  if (a.length !== 3) return '';
+  const dt = new Date(Date.UTC(Number(a[0]), Number(a[1]) - 1, dd));
+  return isNaN(dt.getTime()) ? '' : M_DOW[dt.getUTCDay()];
+}
+
 function renderMonthly(d) {
   const S = d.stats || {};
   const dim = d.dim || 31;
@@ -756,12 +766,14 @@ function renderMonthly(d) {
     const op = ng ? (0.25 + 0.75 * Math.sqrt(ng / negMax)).toFixed(2) : 0;
     const dot = ng
       ? ` style="background:${C.alert};opacity:${op};box-shadow:0 0 0 1.5px ${C.alert}"` : '';
-    vtl += `<li class="vday"><span class="vdot"${dot} title="ข่าวลบทั้งวัน ${ng}"></span>` +
-      `<span class="vdate">${dd} ${esc((d.monthLabel || '').split(' ')[0] || '')}</span>` +
-      `<span class="vmeta">ประเด็นเด่น ${evs.length} · ${total} ข่าว · ลบทั้งวัน ${ng}</span>` +
+    // 🔄 ปรับ 26 ส.ค. 69 (คำสั่งเจ้าของระบบ: "ต้องการให้ดูสะอาด")
+    //    ตัดตัวเลขหัววัน + ตัวเลขท้ายประเด็นออกจากหน้ากระดาษ — ยังอยู่ครบใน tooltip
+    //    (ตัวเลขไม่หาย แค่ย้ายไปชั้นที่ต้องเอาเมาส์ชี้ · จุดแดงยังไล่เข้มตามข่าวลบเหมือนเดิม)
+    vtl += `<li class="vday"><span class="vdot"${dot} title="วันที่ ${dd}: ข่าวลบทั้งวัน ${ng} · ประเด็นเด่น ${evs.length} (${total} ข่าว)"></span>` +
+      `<span class="vdate">${dd} ${esc((d.monthLabel || '').split(' ')[0] || '')} <span class="vdow">(${mDow(d.from, dd)})</span></span>` +
       evs.map(e =>
-        `<div class="mev" style="border-left-color:${mcatVar(e.cat)}">${mchip(e.cat)}` +
-        `<span class="t">${esc(e.name)}</span><span class="n">${e.n} ข่าว${e.neg ? ' · <b>ลบ ' + e.neg + '</b>' : ''}</span></div>`
+        `<div class="mev" style="border-left-color:${mcatVar(e.cat)}" title="${e.n} ข่าว${e.neg ? ' · ลบ ' + e.neg : ''}">${mchip(e.cat)}` +
+        `<span class="t">${esc(e.name)}</span></div>`
       ).join('') + '</li>';
   });
 
@@ -775,6 +787,18 @@ function renderMonthly(d) {
         `(ระบบเลือกไม่แสดงดีกว่าแสดงข้อมูลที่ยืนยันไม่ได้)</div></div>`;
     }
     const side = (who, txt) => txt ? `<p><b class="who">▸ ${who}:</b> ${esc(txt)}</p>` : '';
+    // 🔄 โครงใหม่ 26 ส.ค. 69 (คำสั่งเจ้าของระบบ) — 4 หัวข้อต่อหมวด
+    //    ช่อง "(ถ้ามี)" ที่ Gemini ตอบ "ไม่มี"/ว่าง จะไม่ถูกแสดง — ไม่บังคับให้มีของเติม (กันกุ)
+    if (a.events || a.suggest) {
+      const opt = t => (t && !/^ไม่มี/.test(String(t).trim())) ? t : '';
+      return `<div class="man" style="border-left-color:${mcatVar(a.cat)}">${head}` +
+        side('เหตุการณ์สำคัญที่เกิดขึ้น', a.events) +
+        side('ประเด็นเชิงลบที่สังคมกล่าวถึง', opt(a.negatives)) +
+        side('การชี้แจงของกองทัพบก', opt(a.response)) +
+        (a.suggest ? `<div class="mkm">💡 <b>ข้อเสนอแนะ:</b> ${esc(a.suggest)}</div>` : '') +
+        '</div>';
+    }
+    // payload รุ่นเก่า (-74 ก่อนปรับ) ยังเปิดอ่านได้ — กฎห้ามลบอดีต
     return `<div class="man" style="border-left-color:${mcatVar(a.cat)}">${head}` +
       side('ฝ่ายกองทัพ/รัฐ', a.army) + side('สื่อ/สังคม', a.media) +
       side('ฝ่ายการเมือง/ผู้เห็นต่าง', a.critics) +
@@ -782,30 +806,6 @@ function renderMonthly(d) {
       (a.keyMessage ? `<div class="mkm">🔑 <b>Key message:</b> ${esc(a.keyMessage)}</div>` : '') +
       '</div>';
   }).join('');
-
-  // ── ⑥ 10 ประเด็น ──
-  const top10 = (d.top10 || []).map((t, i) => {
-    const pct = t.n ? Math.round(t.neg * 100 / t.n) : 0;
-    return `<tr><td>${i + 1}</td><td>${mchip(t.cat)}</td><td>${esc(t.name)}</td>` +
-      `<td class="num">${t.n}</td><td class="num">${t.days} วัน</td>` +
-      `<td><div class="mbar"><i style="width:${pct}%"></i></div><span class="mtag">${t.neg}/${t.n}</span></td></tr>`;
-  }).join('');
-
-  // ── ⑦ ยกยอด ──
-  const toneIcon = { 'ร้อน': '🔴 ร้อน', 'ตามต่อ': '🟠 ตามต่อ', 'บวก': '🟢 บวก' };
-  const carry = (d.carry || []).length
-    ? (d.carry || []).map(t =>
-        `<tr><td>${mchip(t.cat)}</td><td>${esc(t.name)}</td><td class="num">${t.n}</td>` +
-        `<td>${esc(toneIcon[t.tone] || t.tone)}</td></tr>`).join('')
-    : '<tr><td colspan="4">— ไม่มีประเด็นเด่นค้างอยู่ช่วงปลายเดือน —</td></tr>';
-
-  // ── ⑧ สำนักข่าวเสนอต่าง — ชื่อประเด็นจริงตรง ๆ ไม่ผ่านการตีความของ AI ──
-  const solo = !(d.soloOutlets || []).length
-    ? '<tr><td colspan="3">— เดือนนี้ไม่มีสำนักที่มีประเด็นเดี่ยว —</td></tr>'
-    : (d.soloOutlets || []).map(o =>
-    `<tr><td>${esc(o.name)}<div style="margin-top:3px">${(o.cats || []).map(mchip).join(' ')}</div></td>` +
-    `<td class="num">${o.uniq}</td>` +
-    `<td>${(o.examples || []).map(x => `• ${x.neg ? '<b style="color:var(--alertx)">[ลบ]</b> ' : ''}${esc(x.name)}`).join('<br>')}</td></tr>`).join('');
 
   const mock = d.isMockup ? `<div class="mock">🧪 <b>MOCKUP</b> — ${esc(d.mockNote || '')}</div>` : '';
 
@@ -831,25 +831,13 @@ function renderMonthly(d) {
 <div class="cap">แกนนอน = วันที่ · แกนตั้ง = จำนวนข่าว/วัน · ชื่อหมวดกำกับที่ปลายเส้น · จุดวงกลม = วันที่หมวดนั้นมีข่าว ≥ 20</div>
 <div class="mchart">${lineChart}</div>
 
-<h2 class="pb">④ เส้นเรื่องของเดือน</h2>
+<h2 class="pb">④ เหตุการณ์สำคัญในเดือนนี้</h2>
 <div class="cap">เส้นเวลาเดียวไล่จากต้นเดือน · เฉพาะประเด็นเด่น (≥ ${d.tlMin || 4} ข่าว) · สีป้าย = หมวด (มีชื่อกำกับเสมอ) · จุดวงกลมแดงเข้ม = วันนั้นข่าวลบมาก (ตัวเลขกำกับทุกวัน)</div>
 <ul class="vtl">${vtl}</ul>
 
-<h2 class="pb">⑤ บทวิเคราะห์รายหมวด — narrative ของแต่ละฝ่าย</h2>
+<h2 class="pb">⑤ บทวิเคราะห์รายหมวด</h2>
 <div class="ainote">🤖 ส่วนนี้ AI เขียนจากชื่อประเด็นจริงในระบบ ผ่านด่านตรวจอ้างอิงและตัวเลข · หมวดที่ไม่ผ่านด่านจะงดแสดงและประกาศตรง ๆ</div>
 ${analysis || '<div class="manfail">— เดือนนี้ไม่มีหมวดที่เข้าเกณฑ์วิเคราะห์ —</div>'}
-
-<h2 class="pb">⑥ 10 ประเด็นแห่งเดือน</h2>
-<div class="cap">จัดอันดับจาก จำนวนข่าว × ระดับผลกระทบ × อายุประเด็น (ระบบคำนวณ)</div>
-<table class="mtb"><thead><tr><th>#</th><th>หมวด</th><th>ประเด็น</th><th class="num">ข่าว</th><th class="num">อายุ</th><th>สัดส่วนลบ</th></tr></thead><tbody>${top10}</tbody></table>
-
-<h2 class="pb">⑦ ยกยอดไปเดือนหน้า</h2>
-<div class="cap">ประเด็นที่ยังมีข่าวช่วง ${d.carryDays || 3} วันสุดท้ายของเดือน — การบ้านของทีมโฆษกเดือนถัดไป</div>
-<table class="mtb"><thead><tr><th>หมวด</th><th>ประเด็น</th><th class="num">ข่าว</th><th>สถานะ</th></tr></thead><tbody>${carry}</tbody></table>
-
-<h2 class="pb">⑧ สำนักข่าวที่นำเสนอต่างจากกระแส</h2>
-<div class="cap">"ประเด็นเดี่ยว" = ประเด็นที่สำนักนั้นเล่นอยู่เจ้าเดียว ไม่มีสำนักอื่นตาม · แสดงชื่อประเด็นจริงตรง ๆ ไม่ผ่านการตีความของ AI</div>
-<table class="mtb"><thead><tr><th>สำนักข่าว</th><th class="num">ประเด็นเดี่ยว</th><th>ตัวอย่างมุมข่าวเฉพาะ</th></tr></thead><tbody>${solo}</tbody></table>
 
 <footer>${esc(d.footNote || d.aiNote || '')}</footer>
 ${TPL_TAIL}</body></html>`;
