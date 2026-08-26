@@ -473,7 +473,7 @@ html[data-theme="dark"]{--mcJct:#5FB88A;--mcCam:#E0A93F;--mcDrug:#B9A9E8;--mcHel
 .mchip{display:inline-block;font-size:12pt;font-weight:700;border:1.5px solid;border-radius:14px;padding:0 10px;white-space:nowrap}
 .exb{margin:0;padding-left:22px}.exb li{font-size:15pt;margin-bottom:6px}
 .ainote{background:var(--surfw);border:1.5px dashed var(--amber);border-radius:12px;padding:8px 16px;font-size:12.5pt;color:var(--amber2);margin:10px 0}
-.mst{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}
+.mst{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
 .mst .c{background:var(--surf2);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
 .mst .l{font-size:12pt;color:var(--ink3)}.mst .v{font-size:20pt;font-weight:700}.mst .v.neg{color:var(--alertx)}
 .mst .d{font-size:12pt;color:var(--ink3)}.mst .d b{color:var(--ink2)}
@@ -499,6 +499,20 @@ table.mtb td.num,table.mtb th.num{text-align:right;white-space:nowrap}
 .mbar i{display:block;height:100%;background:var(--alert);border-radius:99px}
 .mtag{font-size:11.5pt;color:var(--ink3)}
 .mchart{overflow-x:auto}.mchart svg{width:100%;min-width:620px;height:auto}
+.hm{min-width:680px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surf3)}
+.hmrow{display:flex;align-items:center;gap:8px;padding:1.5px 0}
+.hmlab{flex:0 0 172px;font-size:12pt;color:var(--ink2);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hmdot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:baseline}
+.hmcells{display:flex;gap:2px;flex:1}
+.hmc{flex:1;aspect-ratio:1/1.15;max-height:24px;min-height:17px;background:var(--surf2);border-radius:3px;position:relative;overflow:hidden}
+.hmc.na{background:transparent;border:1px dashed var(--line)}
+.hmc i{position:absolute;inset:0;border-radius:3px}
+.hmc u{position:absolute;left:15%;right:15%;bottom:1.5px;height:2.5px;border-radius:2px;background:var(--alert)}
+.hmd{flex:1;text-align:center;font-size:10.5pt;color:var(--ink4)}
+.hmhead{padding-bottom:2px}
+.hmsum{flex:0 0 118px;font-size:11.5pt;color:var(--ink3);text-align:right;white-space:nowrap}
+.hmsum b{color:var(--alertx)}
+@media screen{.hmlab{font-size:14px}.hmsum{font-size:13px}.hmd{font-size:11px}}
 @media screen{.exb li{font-size:17px}.mev{font-size:16px}.vdate{font-size:17px}.man p,.mkm{font-size:16px}table.mtb{font-size:15px}.mchip{font-size:13px}}
 @media print{.vtl::before{background:#999}}`;
 
@@ -703,14 +717,14 @@ function renderMonthly(d) {
   const negMax = Math.max.apply(null, negDay.concat([1]));
 
   // ── ② การ์ดตัวเลข ──
+  // 🔄 26 ส.ค. (รอบ 2): ตัดการ์ดวันเงียบสุด · เหลือ 4 ใบ จัด 2 แถว แถวละ 2
   const st = [
     { l: 'ข่าวทั้งหมด', v: S.news, d: `${esc(d.prevMonthLabel)} <b>${S.prevNews}</b>` },
     { l: 'ประเด็น', v: S.topics, d: `${esc(d.prevMonthLabel)} <b>${S.prevTopics}</b>` },
     { l: 'ข่าวลบ', v: `${S.neg} · ${S.negPct}%`, neg: 1,
       d: `เดือนก่อน <b>${S.prevNeg} · ${S.prevNegPct}%</b> ${arrow(S.negPctDelta)}${Math.abs(S.negPctDelta)} จุด` },
     { l: 'วันหนักสุด', v: `${S.peakDay} ${esc((d.monthLabel || '').split(' ')[0] || '')}`,
-      d: `<b>${S.peakN} ข่าว</b>${S.peakNote ? ' · ' + esc(S.peakNote).slice(0, 40) : ''}` },
-    { l: 'วันเงียบสุด', v: `${S.quietDay}`, d: `<b>${S.quietN} ข่าว</b>` }
+      d: `<b>${S.peakN} ข่าว</b>${S.peakNote ? ' · ' + esc(S.peakNote).slice(0, 40) : ''}` }
   ].map(k => `<div class="c"><div class="l">${k.l}</div><div class="v${k.neg ? ' neg' : ''}">${k.v}</div><div class="d">${k.d}</div></div>`).join('');
 
   // ── ③ กราฟเส้น SVG ──
@@ -747,7 +761,39 @@ function renderMonthly(d) {
   });
   const lineChart = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="กราฟเส้นจำนวนข่าวรายวันแยกหมวด">${ch}</svg>`;
 
-  // ── ④ เส้นเรื่องแนวตั้ง ──
+  // ── ④ สถิติข่าวตามหมวด: ตารางความร้อน แถว=หมวด × คอลัมน์=วัน ──
+  //    ตามภาพตัวอย่างที่เจ้าของระบบส่งมา 26 ส.ค. · ความเข้มเทียบกับค่าสูงสุดของแถวตัวเอง
+  //    (แต่ละหมวดปริมาณต่างกันมาก ถ้าใช้สเกลรวม หมวดเล็กจะจางจนมองไม่เห็นทั้งแถว)
+  const catDays = d.catDays || [];
+  let catHeat = '';
+  if (catDays.length) {
+    let head = '<div class="hmrow hmhead"><div class="hmlab"></div><div class="hmcells">';
+    for (let dd = 1; dd <= 31; dd++)
+      head += `<div class="hmd">${dd <= dim && (dd === 1 || dd % 5 === 0) ? dd : ''}</div>`;
+    head += '</div><div class="hmsum"></div></div>';
+    const rowsH = catDays.map(c => {
+      const rowMax = Math.max.apply(null, (c.days || [0]).concat([1]));
+      const col = mcatVar(c.cat);
+      let cells = '';
+      for (let dd = 1; dd <= 31; dd++) {
+        if (dd > dim) { cells += '<div class="hmc na"></div>'; continue; }
+        const v = (c.days || [])[dd - 1] || 0;
+        const ng = (c.negs || [])[dd - 1] || 0;
+        const op = v ? (0.2 + 0.8 * Math.sqrt(v / rowMax)).toFixed(2) : 0;
+        cells += `<div class="hmc" title="${dd} ${esc((d.monthLabel || '').split(' ')[0] || '')} · ${esc(c.cat)} · ${v} ข่าว${ng ? ' (ลบ ' + ng + ')' : ''}">` +
+          (v ? `<i style="background:${col};opacity:${op}"></i>` : '') +
+          (ng ? '<u></u>' : '') + '</div>';
+      }
+      return `<div class="hmrow"><div class="hmlab"><span class="hmdot" style="background:${col}"></span>${esc(c.cat)}</div>` +
+        `<div class="hmcells">${cells}</div>` +
+        `<div class="hmsum">${c.n} ข่าว${c.neg ? ' · <b>ลบ ' + c.neg + '</b>' : ''}</div></div>`;
+    }).join('');
+    catHeat = `<div class="hm">${head}${rowsH}</div>`;
+  } else {
+    catHeat = '<div class="manfail">— ไม่มีข้อมูลรายหมวดรายวันในฉบับนี้ —</div>';
+  }
+
+  // ── ⑤ เส้นเรื่องแนวตั้ง ──
   const tlByDay = {};
   (d.timeline || []).forEach(e => { (tlByDay[e.d] = tlByDay[e.d] || []).push(e); });
   const gapAfter = {};
@@ -795,7 +841,6 @@ function renderMonthly(d) {
         side('เหตุการณ์สำคัญที่เกิดขึ้น', a.events) +
         side('ประเด็นเชิงลบที่สังคมกล่าวถึง', opt(a.negatives)) +
         side('การชี้แจงของกองทัพบก', opt(a.response)) +
-        (a.suggest ? `<div class="mkm">💡 <b>ข้อเสนอแนะ:</b> ${esc(a.suggest)}</div>` : '') +
         '</div>';
     }
     // payload รุ่นเก่า (-74 ก่อนปรับ) ยังเปิดอ่านได้ — กฎห้ามลบอดีต
@@ -827,15 +872,19 @@ function renderMonthly(d) {
 <h2>② ตัวเลขเดือนนี้ เทียบเดือนก่อน</h2>
 <div class="mst">${st}</div>
 
-<h2 class="pb">③ แนวโน้มรายวัน ${series.length} หมวดหลัก</h2>
+<h2 class="pb">③ แนวโน้มรายวัน ${series.length} หมวดหลักสูงสุด</h2>
 <div class="cap">แกนนอน = วันที่ · แกนตั้ง = จำนวนข่าว/วัน · ชื่อหมวดกำกับที่ปลายเส้น · จุดวงกลม = วันที่หมวดนั้นมีข่าว ≥ 20</div>
 <div class="mchart">${lineChart}</div>
 
-<h2 class="pb">④ เหตุการณ์สำคัญในเดือนนี้</h2>
+<h2 class="pb">④ สถิติข่าวตามหมวด</h2>
+<div class="cap">แถว = หมวด (ทุกหมวดที่มีข่าวเดือนนี้ เรียงมาก→น้อย) · คอลัมน์ = วันที่ · สีเข้ม = ข่าวมากของหมวดนั้น · ขีดแดงใต้ช่อง = วันนั้นมีข่าวลบ · ชี้ที่ช่องดูตัวเลข</div>
+<div class="mchart">${catHeat}</div>
+
+<h2 class="pb">⑤ เหตุการณ์สำคัญในเดือนนี้</h2>
 <div class="cap">เส้นเวลาเดียวไล่จากต้นเดือน · เฉพาะประเด็นเด่น (≥ ${d.tlMin || 4} ข่าว) · สีป้าย = หมวด (มีชื่อกำกับเสมอ) · จุดวงกลมแดงเข้ม = วันนั้นข่าวลบมาก (ตัวเลขกำกับทุกวัน)</div>
 <ul class="vtl">${vtl}</ul>
 
-<h2 class="pb">⑤ บทวิเคราะห์รายหมวด</h2>
+<h2 class="pb">⑥ บทสรุปรายหมวด</h2>
 <div class="ainote">🤖 ส่วนนี้ AI เขียนจากชื่อประเด็นจริงในระบบ ผ่านด่านตรวจอ้างอิงและตัวเลข · หมวดที่ไม่ผ่านด่านจะงดแสดงและประกาศตรง ๆ</div>
 ${analysis || '<div class="manfail">— เดือนนี้ไม่มีหมวดที่เข้าเกณฑ์วิเคราะห์ —</div>'}
 
