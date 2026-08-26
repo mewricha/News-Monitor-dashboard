@@ -514,7 +514,11 @@ table.mtb td.num,table.mtb th.num{text-align:right;white-space:nowrap}
 .hmsum b{color:var(--alertx)}
 @media screen{.hmlab{font-size:14px}.hmsum{font-size:13px}.hmd{font-size:11px}}
 @media screen{.exb li{font-size:17px}.mev{font-size:16px}.vdate{font-size:17px}.man p,.mkm{font-size:16px}table.mtb{font-size:15px}.mchip{font-size:13px}}
-@media print{.vtl::before{background:#999}}`;
+@media print{.vtl::before{background:#999}}
+/* 🖨️ แก้ 26 ส.ค. 69 (แจ้งโดยเจ้าของระบบ): กด "บันทึกเป็น PDF" แล้วตาราง ④ หายทั้งแผง
+   สาเหตุ: ช่องสี heatmap เป็นพื้นหลัง CSS — ค่าเริ่มต้นของเบราว์เซอร์ไม่พิมพ์พื้นหลัง
+   (กราฟ ③ ไม่หายเพราะเป็น SVG ซึ่งถือเป็นเนื้อหา) — บังคับพิมพ์สีเฉพาะชิ้นส่วนที่จำเป็น */
+@media print{.hm,.hmc,.hmc i,.hmc u,.hmdot,.vdot,.mbar,.mbar i,.mst .c{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
 
 const TPL_BOOT  = `<script>
 /* ⚠️ ต้องอยู่ก่อน <style> และเป็น inline — ถ้าไปตั้งธีมทีหลัง ผู้ใช้โหมดมืดจะเห็น
