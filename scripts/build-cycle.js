@@ -460,6 +460,48 @@ a.src{color:var(--forest);text-decoration:none;border-bottom:1px dotted var(--li
 @media screen{.wname{font-size:19px}.wwhy{font-size:17px}.wtag{font-size:14px}.attn .ai{font-size:17px}.quiet{font-size:16px}.wmeta,.autoflag{font-size:14px}.cmpn{font-size:15px}.wmore{font-size:15px}}
 @media print{.wcard{background:var(--surf3)!important}}`;
 
+// ═════════════════════════════════════════════════════════════════
+// 📆 สไตล์เฉพาะหน้ารายงานประจำเดือน (S24 · 26 ส.ค. 69)
+//
+// 🔴 สีหมวด 5 สี — ความหมายผูกตายตัว ห้ามสลับ:
+//    เหลือง/amber สงวนให้ "ไทย-กัมพูชา" (กติกาสีของทั้งเว็บ) · เขียว = จชต.
+//    ม่วง = ยาเสพติด · ฟ้า = ช่วยเหลือ ปชช. · เทา = หมวดอื่น
+//    ทุกจุดที่ใช้สี มีชื่อหมวดเป็นข้อความกำกับเสมอ — สีเป็นแค่ตัวช่วย (กัน CVD)
+// ═════════════════════════════════════════════════════════════════
+const TPL_STYLE_MONTHLY = `:root{--mcJct:#1B593C;--mcCam:#8A5A00;--mcDrug:#5B4B8A;--mcHelp:#20617E;--mcEtc:#67716B}
+html[data-theme="dark"]{--mcJct:#5FB88A;--mcCam:#E0A93F;--mcDrug:#B9A9E8;--mcHelp:#7FC4E0;--mcEtc:#9AA6A0}
+.mchip{display:inline-block;font-size:12pt;font-weight:700;border:1.5px solid;border-radius:14px;padding:0 10px;white-space:nowrap}
+.exb{margin:0;padding-left:22px}.exb li{font-size:15pt;margin-bottom:6px}
+.ainote{background:var(--surfw);border:1.5px dashed var(--amber);border-radius:12px;padding:8px 16px;font-size:12.5pt;color:var(--amber2);margin:10px 0}
+.mst{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}
+.mst .c{background:var(--surf2);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
+.mst .l{font-size:12pt;color:var(--ink3)}.mst .v{font-size:20pt;font-weight:700}.mst .v.neg{color:var(--alertx)}
+.mst .d{font-size:12pt;color:var(--ink3)}.mst .d b{color:var(--ink2)}
+.vtl{position:relative;margin:6px 0;padding:0;list-style:none}
+.vtl::before{content:'';position:absolute;left:8px;top:12px;bottom:12px;width:2px;background:var(--line2)}
+.vday{position:relative;padding:0 0 8px 32px;break-inside:avoid;page-break-inside:avoid}
+.vdot{position:absolute;left:1px;margin-top:4px;width:15px;height:15px;border-radius:50%;border:2px solid var(--paper);background:var(--line2);box-shadow:0 0 0 1.5px var(--ink4)}
+.vdate{font-weight:700;font-size:15pt}.vmeta{font-size:12.5pt;color:var(--ink3);margin-left:8px}
+.mev{display:flex;gap:9px;align-items:baseline;padding:2px 0 2px 9px;margin-left:-12px;border-left:3.5px solid transparent;font-size:14pt}
+.mev .t{flex:1;line-height:1.45}.mev .n{font-size:12pt;color:var(--ink3);white-space:nowrap}.mev .n b{color:var(--alertx)}
+.mgap{padding:2px 0 10px 32px;font-size:12.5pt;color:var(--ink4)}
+.man{border-left:4px solid var(--line2);padding:2px 0 4px 14px;margin:12px 0 20px;break-inside:avoid;page-break-inside:avoid}
+.man .h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.man h3{margin:0}
+.man .nums{font-size:12.5pt;color:var(--ink3)}
+.man p{font-size:14pt;margin:7px 0}.man p b.who{color:var(--ink)}
+.mkm{background:var(--surf2);border-radius:10px;padding:8px 14px;margin-top:8px;font-size:14pt}
+.manfail{background:var(--mockbg);color:var(--mockink);border-radius:10px;padding:10px 16px;font-size:13.5pt}
+table.mtb{border-collapse:collapse;width:100%;font-size:13.5pt}
+table.mtb th{text-align:left;color:var(--ink3);font-weight:700;padding:5px 8px;border-bottom:1.5px solid var(--line2);font-size:12.5pt}
+table.mtb td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.mtb td.num,table.mtb th.num{text-align:right;white-space:nowrap}
+.mbar{height:6px;border-radius:99px;background:var(--surf2);overflow:hidden;min-width:60px}
+.mbar i{display:block;height:100%;background:var(--alert);border-radius:99px}
+.mtag{font-size:11.5pt;color:var(--ink3)}
+.mchart{overflow-x:auto}.mchart svg{width:100%;min-width:620px;height:auto}
+@media screen{.exb li{font-size:17px}.mev{font-size:16px}.vdate{font-size:17px}.man p,.mkm{font-size:16px}table.mtb{font-size:15px}.mchip{font-size:13px}}
+@media print{.vtl::before{background:#999}}`;
+
 const TPL_BOOT  = `<script>
 /* ⚠️ ต้องอยู่ก่อน <style> และเป็น inline — ถ้าไปตั้งธีมทีหลัง ผู้ใช้โหมดมืดจะเห็น
    "แฟลชขาว" ทุกครั้งที่เปิดหน้า เพราะเบราว์เซอร์วาดพื้นสว่างไปแล้วก่อนสคริปต์รัน
@@ -622,9 +664,203 @@ ${fig(catsCh, 'ภาพที่ 2 — จำนวนข่าวเมื่�
 ${TPL_TAIL}</body></html>`;
 }
 
+// ── สีหมวดของรายงานเดือน — ป้ายมีข้อความกำกับเสมอ สีเป็นแค่ตัวช่วย ──
+function mcatKey(cat) {
+  const c = String(cat || '');
+  if (c.indexOf('จชต') >= 0) return 'Jct';
+  if (c.indexOf('กัมพูชา') >= 0) return 'Cam';
+  if (c.indexOf('ยาเสพติด') >= 0) return 'Drug';
+  if (c.indexOf('ช่วยเหลือ') >= 0) return 'Help';
+  return 'Etc';
+}
+function mcatVar(cat) { return 'var(--mc' + mcatKey(cat) + ')'; }
+function mchip(cat) {
+  const v = mcatVar(cat);
+  return `<span class="mchip" style="border-color:${v};color:${v}">${esc(cat)}</span>`;
+}
+
+/**
+ * 📆 หน้ารายงานประจำเดือน (S24) — โครงตามแบบที่เจ้าของระบบอนุมัติ 26 ส.ค. 69
+ * ① บทสรุป ② ตัวเลขเทียบเดือนก่อน ③ กราฟเส้น 5 หมวด ④ เส้นเรื่องแนวตั้ง
+ * ⑤ วิเคราะห์ narrative รายหมวด ⑥ 10 ประเด็น ⑦ ยกยอด ⑧ สำนักข่าวเสนอต่าง
+ * 🔴 ส่วนที่ AI เขียน (①⑤) มีป้ายกำกับเสมอ · หมวดที่ไม่ผ่านด่านตรวจ = ประกาศงดแสดงตรง ๆ
+ */
+function renderMonthly(d) {
+  const S = d.stats || {};
+  const dim = d.dim || 31;
+  const series = d.seriesCats || [];
+  const negDay = d.negDay || [];
+  const negMax = Math.max.apply(null, negDay.concat([1]));
+
+  // ── ② การ์ดตัวเลข ──
+  const st = [
+    { l: 'ข่าวทั้งหมด', v: S.news, d: `${esc(d.prevMonthLabel)} <b>${S.prevNews}</b>` },
+    { l: 'ประเด็น', v: S.topics, d: `${esc(d.prevMonthLabel)} <b>${S.prevTopics}</b>` },
+    { l: 'ข่าวลบ', v: `${S.neg} · ${S.negPct}%`, neg: 1,
+      d: `เดือนก่อน <b>${S.prevNeg} · ${S.prevNegPct}%</b> ${arrow(S.negPctDelta)}${Math.abs(S.negPctDelta)} จุด` },
+    { l: 'วันหนักสุด', v: `${S.peakDay} ${esc((d.monthLabel || '').split(' ')[0] || '')}`,
+      d: `<b>${S.peakN} ข่าว</b>${S.peakNote ? ' · ' + esc(S.peakNote).slice(0, 40) : ''}` },
+    { l: 'วันเงียบสุด', v: `${S.quietDay}`, d: `<b>${S.quietN} ข่าว</b>` }
+  ].map(k => `<div class="c"><div class="l">${k.l}</div><div class="v${k.neg ? ' neg' : ''}">${k.v}</div><div class="d">${k.d}</div></div>`).join('');
+
+  // ── ③ กราฟเส้น SVG ──
+  const W = 860, H = 300, L = 40, R = 128, T = 14, B = 30;
+  const ymaxRaw = Math.max.apply(null, series.map(sr => Math.max.apply(null, sr.days.concat([0]))).concat([10]));
+  const YMAX = Math.ceil(ymaxRaw / 25) * 25;
+  const X = i => L + (W - L - R) * i / (dim - 1);
+  const Y = v => T + (H - T - B) * (1 - v / YMAX);
+  let ch = '';
+  for (let g = 0; g <= YMAX; g += Math.max(25, Math.ceil(YMAX / 4 / 25) * 25)) {
+    ch += `<line x1="${L}" y1="${Y(g)}" x2="${W - R}" y2="${Y(g)}" stroke="${C.grid}" stroke-width="1"/>` +
+          `<text x="${L - 6}" y="${Y(g) + 4}" text-anchor="end" font-size="12" font-family="${FAM}" fill="${C.ink4}">${g}</text>`;
+  }
+  for (let dd = 1; dd <= dim; dd++) if (dd === 1 || dd % 5 === 0)
+    ch += `<text x="${X(dd - 1)}" y="${H - 8}" text-anchor="middle" font-size="12" font-family="${FAM}" fill="${C.ink4}">${dd}</text>`;
+  // ป้ายปลายเส้น: กันชนกัน + กันหลุดขอบ (บทเรียนจากแบบร่าง)
+  const labels = series.map(sr => ({ k: sr.cat, y: Y(sr.days[dim - 1] || 0) }))
+    .sort((a, b) => a.y - b.y);
+  for (let i = 1; i < labels.length; i++)
+    if (labels[i].y - labels[i - 1].y < 17) labels[i].y = labels[i - 1].y + 17;
+  if (labels.length && labels[labels.length - 1].y > H - 8) {
+    labels[labels.length - 1].y = H - 8;
+    for (let j = labels.length - 2; j >= 0; j--)
+      if (labels[j + 1].y - labels[j].y < 17) labels[j].y = labels[j + 1].y - 17;
+  }
+  const labelY = {}; labels.forEach(l => { labelY[l.k] = l.y; });
+  series.forEach(sr => {
+    const col = mcatVar(sr.cat);
+    const pts = sr.days.map((v, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v || 0).toFixed(1)).join('');
+    ch += `<path d="${pts}" fill="none" stroke="${col}" stroke-width="1.4" stroke-linejoin="round"/>`;
+    ch += `<text x="${W - R + 8}" y="${(labelY[sr.cat] || Y(0)) + 4}" font-size="13" font-weight="700" font-family="${FAM}" fill="${col}">${esc(sr.cat)}</text>`;
+    sr.days.forEach((v, i) => { if (v >= 20)
+      ch += `<circle cx="${X(i)}" cy="${Y(v)}" r="3.5" fill="${col}" stroke="${C.grid}" stroke-width="1"><title>${i + 1} · ${esc(sr.cat)} ${v} ข่าว</title></circle>`; });
+  });
+  const lineChart = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="กราฟเส้นจำนวนข่าวรายวันแยกหมวด">${ch}</svg>`;
+
+  // ── ④ เส้นเรื่องแนวตั้ง ──
+  const tlByDay = {};
+  (d.timeline || []).forEach(e => { (tlByDay[e.d] = tlByDay[e.d] || []).push(e); });
+  const gapAfter = {};
+  (d.gaps || []).forEach(g => { gapAfter[g.from] = g; });
+  let vtl = '';
+  Object.keys(tlByDay).map(Number).sort((a, b) => a - b).forEach(dd => {
+    // ช่วงเงียบที่จบก่อนวันนี้
+    (d.gaps || []).forEach(g => {
+      if (g.to === dd - 1 || (g.from < dd && g.to < dd && !g.done)) {
+        if (!g.done) { vtl += `<li class="mgap">— วันที่ ${g.from}-${g.to} ไม่มีประเด็นเด่น (ข่าวรวม ${g.news}) —</li>`; g.done = true; }
+      }
+    });
+    const evs = tlByDay[dd];
+    const total = evs.reduce((s2, e) => s2 + e.n, 0);
+    const ng = negDay[dd - 1] || 0;
+    const op = ng ? (0.25 + 0.75 * Math.sqrt(ng / negMax)).toFixed(2) : 0;
+    const dot = ng
+      ? ` style="background:${C.alert};opacity:${op};box-shadow:0 0 0 1.5px ${C.alert}"` : '';
+    vtl += `<li class="vday"><span class="vdot"${dot} title="ข่าวลบทั้งวัน ${ng}"></span>` +
+      `<span class="vdate">${dd} ${esc((d.monthLabel || '').split(' ')[0] || '')}</span>` +
+      `<span class="vmeta">ประเด็นเด่น ${evs.length} · ${total} ข่าว · ลบทั้งวัน ${ng}</span>` +
+      evs.map(e =>
+        `<div class="mev" style="border-left-color:${mcatVar(e.cat)}">${mchip(e.cat)}` +
+        `<span class="t">${esc(e.name)}</span><span class="n">${e.n} ข่าว${e.neg ? ' · <b>ลบ ' + e.neg + '</b>' : ''}</span></div>`
+      ).join('') + '</li>';
+  });
+
+  // ── ⑤ บทวิเคราะห์ ──
+  const analysis = (d.analysis || []).map(a => {
+    const head = `<div class="h">${mchip(a.cat)}<h3>${esc(a.cat)}</h3>` +
+      `<span class="nums">${a.n} ข่าว · ลบ ${a.neg} (${a.negPct}%)</span></div>`;
+    if (!a.ok) {
+      return `<div class="man" style="border-left-color:${mcatVar(a.cat)}">${head}` +
+        `<div class="manfail">⚠️ บทวิเคราะห์หมวดนี้งดแสดง — ผลจาก AI ไม่ผ่านการตรวจสอบอ้างอิง/ตัวเลขอัตโนมัติ ` +
+        `(ระบบเลือกไม่แสดงดีกว่าแสดงข้อมูลที่ยืนยันไม่ได้)</div></div>`;
+    }
+    const side = (who, txt) => txt ? `<p><b class="who">▸ ${who}:</b> ${esc(txt)}</p>` : '';
+    return `<div class="man" style="border-left-color:${mcatVar(a.cat)}">${head}` +
+      side('ฝ่ายกองทัพ/รัฐ', a.army) + side('สื่อ/สังคม', a.media) +
+      side('ฝ่ายการเมือง/ผู้เห็นต่าง', a.critics) +
+      (a.weak ? `<p><b class="who">⚠️</b> ${esc(a.weak)}</p>` : '') +
+      (a.keyMessage ? `<div class="mkm">🔑 <b>Key message:</b> ${esc(a.keyMessage)}</div>` : '') +
+      '</div>';
+  }).join('');
+
+  // ── ⑥ 10 ประเด็น ──
+  const top10 = (d.top10 || []).map((t, i) => {
+    const pct = t.n ? Math.round(t.neg * 100 / t.n) : 0;
+    return `<tr><td>${i + 1}</td><td>${mchip(t.cat)}</td><td>${esc(t.name)}</td>` +
+      `<td class="num">${t.n}</td><td class="num">${t.days} วัน</td>` +
+      `<td><div class="mbar"><i style="width:${pct}%"></i></div><span class="mtag">${t.neg}/${t.n}</span></td></tr>`;
+  }).join('');
+
+  // ── ⑦ ยกยอด ──
+  const toneIcon = { 'ร้อน': '🔴 ร้อน', 'ตามต่อ': '🟠 ตามต่อ', 'บวก': '🟢 บวก' };
+  const carry = (d.carry || []).length
+    ? (d.carry || []).map(t =>
+        `<tr><td>${mchip(t.cat)}</td><td>${esc(t.name)}</td><td class="num">${t.n}</td>` +
+        `<td>${esc(toneIcon[t.tone] || t.tone)}</td></tr>`).join('')
+    : '<tr><td colspan="4">— ไม่มีประเด็นเด่นค้างอยู่ช่วงปลายเดือน —</td></tr>';
+
+  // ── ⑧ สำนักข่าวเสนอต่าง — ชื่อประเด็นจริงตรง ๆ ไม่ผ่านการตีความของ AI ──
+  const solo = !(d.soloOutlets || []).length
+    ? '<tr><td colspan="3">— เดือนนี้ไม่มีสำนักที่มีประเด็นเดี่ยว —</td></tr>'
+    : (d.soloOutlets || []).map(o =>
+    `<tr><td>${esc(o.name)}<div style="margin-top:3px">${(o.cats || []).map(mchip).join(' ')}</div></td>` +
+    `<td class="num">${o.uniq}</td>` +
+    `<td>${(o.examples || []).map(x => `• ${x.neg ? '<b style="color:var(--alertx)">[ลบ]</b> ' : ''}${esc(x.name)}`).join('<br>')}</td></tr>`).join('');
+
+  const mock = d.isMockup ? `<div class="mock">🧪 <b>MOCKUP</b> — ${esc(d.mockNote || '')}</div>` : '';
+
+  return `<!doctype html><html lang="th"><head><meta charset="utf-8">` +
+    `<title>${esc(d.title)} · ${esc(d.periodLabel)}</title>` +
+    `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+    ogTags(d) + TPL_BOOT + `<style>${TPL_STYLE}${TPL_STYLE_MONTHLY}</style></head><body>
+
+<div class="toolbar"><button type="button" class="tb tb-close" onclick="closeThisPage()">✕ ปิดหน้านี้</button><button type="button" class="tb tb-theme" id="themeBtn" onclick="toggleTheme()"></button><button type="button" class="tb tb-pdf" onclick="window.print()">🖨️ บันทึกเป็น PDF</button></div>${mock}
+
+<div class="banner"><span class="tag">${esc(cycleLabel(d.type))} · ฉบับที่ ${esc(d.no)}</span>
+<h1>${esc(d.title)}</h1>
+<div class="sub">${esc(d.periodLabel)} · จัดทำโดยระบบติดตามข่าวอัตโนมัติ</div></div>
+
+<h2>① บทสรุปผู้บริหาร</h2>
+<ul class="exb">${(d.exec && d.exec.bullets || []).map(b => `<li>${esc(b)}</li>`).join('')}</ul>
+<div class="ainote">🤖 ${esc(d.aiNote || '')}</div>
+
+<h2>② ตัวเลขเดือนนี้ เทียบเดือนก่อน</h2>
+<div class="mst">${st}</div>
+
+<h2 class="pb">③ แนวโน้มรายวัน ${series.length} หมวดหลัก</h2>
+<div class="cap">แกนนอน = วันที่ · แกนตั้ง = จำนวนข่าว/วัน · ชื่อหมวดกำกับที่ปลายเส้น · จุดวงกลม = วันที่หมวดนั้นมีข่าว ≥ 20</div>
+<div class="mchart">${lineChart}</div>
+
+<h2 class="pb">④ เส้นเรื่องของเดือน</h2>
+<div class="cap">เส้นเวลาเดียวไล่จากต้นเดือน · เฉพาะประเด็นเด่น (≥ ${d.tlMin || 4} ข่าว) · สีป้าย = หมวด (มีชื่อกำกับเสมอ) · จุดวงกลมแดงเข้ม = วันนั้นข่าวลบมาก (ตัวเลขกำกับทุกวัน)</div>
+<ul class="vtl">${vtl}</ul>
+
+<h2 class="pb">⑤ บทวิเคราะห์รายหมวด — narrative ของแต่ละฝ่าย</h2>
+<div class="ainote">🤖 ส่วนนี้ AI เขียนจากชื่อประเด็นจริงในระบบ ผ่านด่านตรวจอ้างอิงและตัวเลข · หมวดที่ไม่ผ่านด่านจะงดแสดงและประกาศตรง ๆ</div>
+${analysis || '<div class="manfail">— เดือนนี้ไม่มีหมวดที่เข้าเกณฑ์วิเคราะห์ —</div>'}
+
+<h2 class="pb">⑥ 10 ประเด็นแห่งเดือน</h2>
+<div class="cap">จัดอันดับจาก จำนวนข่าว × ระดับผลกระทบ × อายุประเด็น (ระบบคำนวณ)</div>
+<table class="mtb"><thead><tr><th>#</th><th>หมวด</th><th>ประเด็น</th><th class="num">ข่าว</th><th class="num">อายุ</th><th>สัดส่วนลบ</th></tr></thead><tbody>${top10}</tbody></table>
+
+<h2 class="pb">⑦ ยกยอดไปเดือนหน้า</h2>
+<div class="cap">ประเด็นที่ยังมีข่าวช่วง ${d.carryDays || 3} วันสุดท้ายของเดือน — การบ้านของทีมโฆษกเดือนถัดไป</div>
+<table class="mtb"><thead><tr><th>หมวด</th><th>ประเด็น</th><th class="num">ข่าว</th><th>สถานะ</th></tr></thead><tbody>${carry}</tbody></table>
+
+<h2 class="pb">⑧ สำนักข่าวที่นำเสนอต่างจากกระแส</h2>
+<div class="cap">"ประเด็นเดี่ยว" = ประเด็นที่สำนักนั้นเล่นอยู่เจ้าเดียว ไม่มีสำนักอื่นตาม · แสดงชื่อประเด็นจริงตรง ๆ ไม่ผ่านการตีความของ AI</div>
+<table class="mtb"><thead><tr><th>สำนักข่าว</th><th class="num">ประเด็นเดี่ยว</th><th>ตัวอย่างมุมข่าวเฉพาะ</th></tr></thead><tbody>${solo}</tbody></table>
+
+<footer>${esc(d.footNote || d.aiNote || '')}</footer>
+${TPL_TAIL}</body></html>`;
+}
+
 function renderReport(d) {
   // ☀️ รุ่น -64: รายงานประจำวันใช้โครงคนละแบบ — แยกทางตั้งแต่บรรทัดแรก
   if (d.type === 'daily') return renderDaily(d);
+  // 📆 S24: รายเดือนแบบใหม่ (มีธง mschema) ใช้โครงของตัวเอง
+  //    payload เก่า/อื่นที่ type=monthly แต่ไม่มีธง ยังใช้โครงรายสัปดาห์เดิมได้
+  if (d.type === 'monthly' && d.mschema) return renderMonthly(d);
   const S = d.stats || {};
   const daily   = chartDaily(d.daily || []);
   const catsCh  = chartCats(d.cats || [], d.prevPeriodLabel || '');
@@ -765,15 +1001,7 @@ function assertLooksLikeCsv(text) {
 
 async function readFromSheet(url) {
   const { parse } = require('csv-parse/sync');
-  // 🕶️ กันแคช (เพิ่ม 25 ส.ค. 69) — Google แคช published CSV ไว้ ~5 นาที
-  //    แต่ Apps Script สั่ง build "ภายในวินาที" หลังเขียนแท็บ ⇒ ถ้าไม่กันแคช
-  //    build จะได้ข้อมูลชุดเก่า แล้วสรุปว่า "ไม่มีอะไรเปลี่ยน" แบบเงียบสนิท
-  //    (เกิดจริง 25 ส.ค. 69 ตอนซ่อมรายงานย้อนหลัง 4 ฉบับ — Actions เขียวหมดแต่หน้าไม่เปลี่ยน)
-  //    วิธีแก้: ต่อพารามิเตอร์เวลาให้ URL ไม่ซ้ำเดิม แคชจึงไม่มีวันโดน
-  //    (Google ไม่สนพารามิเตอร์แปลกปลอม คืน CSV ตามปกติ) · 🔴 ห้าม log ตัว URL — เป็น secret
-  const bust = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_=' + Date.now();
-  console.log('🕶️ กันแคชชีต: ต่อพารามิเตอร์เวลาท้าย URL แล้ว (ไม่แสดง URL เพราะเป็น secret)');
-  const res = await fetch(bust, { redirect: 'follow' });
+  const res = await fetch(url, { redirect: 'follow' });
   if (!res.ok) throw new Error('ดึงชีตไม่สำเร็จ: HTTP ' + res.status);
   const text = await res.text();
   assertLooksLikeCsv(text);
