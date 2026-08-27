@@ -352,7 +352,7 @@ body {
    (แท็บกราฟสรุปเป็น 2x2 อยู่ก่อนแล้ว ตอนนี้ทั้ง 2 แท็บใช้ผังเดียวกัน) */
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));   /* กันคอลัมน์ไม่เท่า — ดูเหตุผลที่ .results-grid */
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -532,7 +532,7 @@ select, .date-label input {
 /* ---------- แดชบอร์ดกราฟ ---------- */
 .chart-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   margin-bottom: 14px;
 }
@@ -623,9 +623,15 @@ select, .date-label input {
 }
 
 /* ---------- ผลลัพธ์ข่าว (การ์ด) ---------- */
+/* 🔴 ทุกกริดในไฟล์นี้ใช้ minmax(0, 1fr) ไม่ใช่ 1fr เปล่า ๆ — ห้ามแก้กลับ (27 ส.ค. 69)
+   เหตุจริง: การ์ดข่าวใบที่ 141 มี URL ยาว 43 ตัวอักษรในคำโปรย (ตัดบรรทัดไม่ได้ = 323px)
+   `1fr` แท้จริงคือ `minmax(auto, 1fr)` ⇒ "อย่างน้อยต้องกว้างพอใส่เนื้อหาที่หดไม่ได้"
+   คอลัมน์ซ้ายจึงถูกดันเป็น 357px แล้วแย่งพื้นที่อีก 2 คอลัมน์เหลือ 343.5px (ควรได้ 348px เท่ากัน)
+   ⇒ minmax(0, 1fr) = "อย่างน้อย 0" คอลัมน์เท่ากันเสมอไม่ว่าเนื้อหาเป็นอะไร
+   ⚠️ ต้องมาคู่กับ overflow-wrap ที่ .title/.summary (ดูท้ายบล็อกการ์ด) ไม่งั้น URL ยาวจะถูกตัดหาย */
 .results-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -705,6 +711,7 @@ select, .date-label input {
 }
 
 .news-card .title {
+  overflow-wrap: anywhere;   /* เหตุผลเดียวกับ .summary */
   font-size: var(--fs-h4);
   font-weight: 600;
   margin: 6px 0 8px;
@@ -722,6 +729,8 @@ select, .date-label input {
   -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  /* 🔗 URL/คำยาวที่ตัดบรรทัดไม่ได้ ให้ขึ้นบรรทัดใหม่แทนการดันคอลัมน์/ถูกตัดหาย (27 ส.ค. 69) */
+  overflow-wrap: anywhere;
 }
 
 .news-card .summary.expanded {
@@ -783,14 +792,14 @@ select, .date-label input {
 
 /* ---------- Responsive: แท็บเล็ต ---------- */
 @media (min-width: 640px) {
-  .results-grid { grid-template-columns: repeat(2, 1fr); }
+  .results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* ---------- Responsive: เดสก์ท็อป ---------- */
 @media (min-width: 1000px) {
-  .results-grid { grid-template-columns: repeat(3, 1fr); }
+  .results-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .topbar h1 { font-size: 1.1875rem; }
-  .chart-grid { grid-template-columns: 1fr 1fr; }
+  .chart-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 
 
@@ -811,8 +820,8 @@ select, .date-label input {
 .cyc-btn:hover { background: var(--surface-hover); }
 .cyc-btn.active { background: var(--accent); color: var(--accent-on); border-color: var(--accent); font-weight: 600; }
 
-.cycles-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
-@media (min-width: 760px) { .cycles-grid { grid-template-columns: 1fr 1fr; } }
+.cycles-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+@media (min-width: 760px) { .cycles-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 
 /* การ์ดทั้งใบเป็นลิงก์ — เป้าหมายกดใหญ่ ใช้นิ้วกดง่ายบนมือถือ */
 .cyc-card {
