@@ -366,6 +366,8 @@ async function main() {
     const status = (row[6] || '').trim();
     const datetimeRaw = (row[0] || '').trim();
     if (!status || !datetimeRaw) continue; // เอาเฉพาะข่าวที่วิเคราะห์ครบแล้วและมีวันที่
+    // 🕰️ -78 (27 ส.ค. 69): 'เก่า-กัก' = ข่าวเก่าที่ด่านความสดฝั่ง GAS กักไว้ — ห้ามขึ้นเว็บ
+    if (status.indexOf('เก่า-กัก') === 0) continue;
 
     const dt = parseThaiDatetime(datetimeRaw);
     if (!dt || isNaN(dt.getTime())) continue; // ข้ามแถวที่รูปแบบวันที่อ่านไม่ได้
