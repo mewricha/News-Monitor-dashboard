@@ -1,6 +1,6 @@
 {
  "schemaVersion": 1,
- "generatedAt": "2026-10-04T22:50:28.219Z",
+ "generatedAt": "2026-10-04T23:10:15.991Z",
  "reports": [
   {
    "type": "weekly",
@@ -27,6 +27,30 @@
    ],
    "isMockup": false,
    "publishedAt": "2026-10-05T05:50:19+07:00"
+  },
+  {
+   "type": "daily",
+   "id": "2569-d1004",
+   "no": 54,
+   "title": "สรุปข่าวสารและการเฝ้าระวังภาพลักษณ์ กองทัพบก",
+   "periodLabel": "อาทิตย์ที่ 4 ตุลาคม 2569",
+   "from": "2026-10-04",
+   "to": "2026-10-04",
+   "url": "reports/2569-d1004.html",
+   "stats": {
+    "news": 18,
+    "topics": 12,
+    "neg": 1,
+    "negPct": 5.6,
+    "newsDelta": -14,
+    "negPctDelta": -16.8,
+    "watchCount": 1
+   },
+   "highlights": [
+    "มทบ.32 จัดพิธีรับ-ส่งหน้าที่และมอบการบังคับบัญชา ผู้บัญชาการมณฑลทหารบกที่ 32"
+   ],
+   "isMockup": false,
+   "publishedAt": "2026-10-05T06:10:02+07:00"
   },
   {
    "type": "daily",
