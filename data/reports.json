@@ -1,6 +1,6 @@
 {
  "schemaVersion": 1,
- "generatedAt": "2026-10-11T22:51:13.080Z",
+ "generatedAt": "2026-10-11T23:10:38.750Z",
  "reports": [
   {
    "type": "weekly",
@@ -27,6 +27,30 @@
    ],
    "isMockup": false,
    "publishedAt": "2026-10-12T05:51:01+07:00"
+  },
+  {
+   "type": "daily",
+   "id": "2569-d1011",
+   "no": 61,
+   "title": "สรุปข่าวสารและการเฝ้าระวังภาพลักษณ์ กองทัพบก",
+   "periodLabel": "อาทิตย์ที่ 11 ตุลาคม 2569",
+   "from": "2026-10-11",
+   "to": "2026-10-11",
+   "url": "reports/2569-d1011.html",
+   "stats": {
+    "news": 6,
+    "topics": 5,
+    "neg": 0,
+    "negPct": 0,
+    "newsDelta": -11,
+    "negPctDelta": -12.7,
+    "watchCount": 1
+   },
+   "highlights": [
+    "ผู้บังคับบัญชาเคียงข้างกำลังพล ลงพื้นที่ตรวจเยี่ยมบำรุงขวัญ เติมกำลังใจ เสริมความพร้อมชายแดน"
+   ],
+   "isMockup": false,
+   "publishedAt": "2026-10-12T06:10:26+07:00"
   },
   {
    "type": "daily",
