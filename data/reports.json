@@ -1,7 +1,29 @@
 {
  "schemaVersion": 1,
- "generatedAt": "2026-10-11T23:10:38.750Z",
+ "generatedAt": "2026-10-12T23:10:29.092Z",
  "reports": [
+  {
+   "type": "daily",
+   "id": "2569-d1012",
+   "no": 62,
+   "title": "สรุปข่าวสารและการเฝ้าระวังภาพลักษณ์ กองทัพบก",
+   "periodLabel": "จันทร์ที่ 12 ตุลาคม 2569",
+   "from": "2026-10-12",
+   "to": "2026-10-12",
+   "url": "reports/2569-d1012.html",
+   "stats": {
+    "news": 12,
+    "topics": 11,
+    "neg": 1,
+    "negPct": 8.3,
+    "newsDelta": -3,
+    "negPctDelta": -4.9,
+    "watchCount": 0
+   },
+   "highlights": [],
+   "isMockup": false,
+   "publishedAt": "2026-10-13T06:10:10+07:00"
+  },
   {
    "type": "weekly",
    "id": "2569-w41",
