@@ -1,6 +1,6 @@
 {
  "schemaVersion": 1,
- "generatedAt": "2026-11-08T22:50:45.338Z",
+ "generatedAt": "2026-11-08T23:10:11.044Z",
  "reports": [
   {
    "type": "weekly",
@@ -27,6 +27,30 @@
    ],
    "isMockup": false,
    "publishedAt": "2026-11-09T05:50:35+07:00"
+  },
+  {
+   "type": "daily",
+   "id": "2569-d1108",
+   "no": 89,
+   "title": "สรุปข่าวสารและการเฝ้าระวังภาพลักษณ์ กองทัพบก",
+   "periodLabel": "อาทิตย์ที่ 8 พฤศจิกายน 2569",
+   "from": "2026-11-08",
+   "to": "2026-11-08",
+   "url": "reports/2569-d1108.html",
+   "stats": {
+    "news": 20,
+    "topics": 18,
+    "neg": 3,
+    "negPct": 15,
+    "newsDelta": -20,
+    "negPctDelta": -27.3,
+    "watchCount": 1
+   },
+   "highlights": [
+    "ศึกชายแดน'เมียนมา-กัมพูชา' ระอุ 'ไทย'เข้าโหมดเตรียมรบสกัดศึกสองด้าน"
+   ],
+   "isMockup": false,
+   "publishedAt": "2026-11-09T06:10:01+07:00"
   },
   {
    "type": "daily",
