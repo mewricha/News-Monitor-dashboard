@@ -1,7 +1,31 @@
 {
  "schemaVersion": 1,
- "generatedAt": "2026-11-26T23:10:16.569Z",
+ "generatedAt": "2026-11-27T23:10:15.435Z",
  "reports": [
+  {
+   "type": "daily",
+   "id": "2569-d1127",
+   "no": 108,
+   "title": "สรุปข่าวสารและการเฝ้าระวังภาพลักษณ์ กองทัพบก",
+   "periodLabel": "ศุกร์ที่ 27 พฤศจิกายน 2569",
+   "from": "2026-11-27",
+   "to": "2026-11-27",
+   "url": "reports/2569-d1127.html",
+   "stats": {
+    "news": 27,
+    "topics": 15,
+    "neg": 1,
+    "negPct": 3.7,
+    "newsDelta": -3,
+    "negPctDelta": -20.5,
+    "watchCount": 1
+   },
+   "highlights": [
+    "ผลเจรจาประนอมไทย-กัมพูชา ครั้งที่ 3 คืบหน้า เคาะเกณฑ์เทคนิค"
+   ],
+   "isMockup": false,
+   "publishedAt": "2026-11-28T06:10:00+07:00"
+  },
   {
    "type": "daily",
    "id": "2569-d1126",
